@@ -1,0 +1,327 @@
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <title> WebRTCBench 0.3</title>
+        <link rel="stylesheet" href="css/style.css">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    </head>
+    <body>
+    <script language="javascript">
+
+    </script>
+
+        <h2 style = "text-align:center;"> WebRTCBench 0.3: A WebRTC Benchmark [<a href="WebRTCBenchGuide.html">go to the guide</a>]</h2>
+
+        <div id = "heading"><h2> Open or Join a WebRTC Connection </h2> </div>
+
+        <div id = "welcome" > </div>
+
+        <div id = "how-to-use">
+            <p> To connect to another client, select a session type from the dropdown and click open channel. Then, send your peer the number of the channel you created and tell them to join that channel with the same session type.
+
+        </div>
+
+
+
+<div style="width:640;">
+        <div id="nametime" class="container"  >
+            <h4> User Information </h4>
+            Nick name:
+            <input type = "text" id = "username" style="float: right" placeholder = "Enter Name Here" >
+            <br>
+            Time Stamp:
+            <input type="text" id="timestamp" value="timestamp" style="float: right">
+             <br>
+            <label>Session Type</label>
+            <select id = "session-type">
+                <option value="AV"> Video+Audio </option>
+                <option value="V"> Video </option>
+                <option value="A"> Audio </option>
+                <option value="D"> Data </option>
+                <option value="VD"> Video+Data </option>
+                <option value="AVD"> Video+Audio+Data </option>
+            </select>
+            <br>
+            <input type="text" id="channel" value="channel">
+            <br>
+            <button id="openChannel" style="float:left">Open Channel</button>
+
+            <button id="confirmConnection" style="float:right;clear:none"> Connect through Channel </button>
+            <button id="joinChannel" style="float:right;clear:none">Join Channel</button>
+        </div>
+        <div id="uainfo" class="container"   >
+        <h4> User Agent Info </h4>
+
+        <label>Device Type</label>
+        <select id = "device">
+            <option> Mobile </option>
+            <option> Desktop </option>
+        </select>
+        <br>
+        <label>Processor</label>
+        <input type = "text"  id = "processor" >
+        <br>
+        <label>OS</label>
+        <input type = "text"  id = "operating-system">
+        <br>
+        <label>Browser</label>
+        <input type = "text"  id = "browser" >
+        <br>
+        <label>Network Type</label>
+        <select id = "network-type" >
+            <option> LAN </option>
+            <option> WIFI </option>
+            <option> LTE </option>
+            <option> 4G </option>
+        </select>
+
+
+        </div>
+        <div id="settings" class="container">
+            <h4>Settings</h4>
+
+            <label>Verbose</label>
+            <input type="button" id="verboseButton" value="No" class="off" />
+            <br>
+            <label>Send Events</label>
+            <input type="button" id="sendButton" value="No" class="off"  />
+            <br>
+            <label>Video Stats</label>
+            <input type="button" id="statsButton" value="No" class="off"  />
+            <br>
+            <br>
+            <button id="storeInfo" >Remember</button>
+        </div>
+</div>
+
+
+<div>
+        <div id = "local-streams" class="dynamicContainer" style="clear:both">
+            <h4> Local A/V Streams </h4>
+        </div>
+
+        <div id = "remote-streams"  class="dynamicContainer">
+            <h4> Remote A/V Streams </h4>
+        </div>
+
+        <div id="chat" class="dynamicContainer">
+            <h4> Chat Area </h4>
+            <textarea id="chat-output" readonly style="width: 80%;min-height:100px;resize: none;"></textarea>
+            <br>
+            <input type="text" id="chat-input"  placeholder="chat message" disabled style="width:80%;">
+        </div>
+
+    </div>
+
+
+
+    <div style="clear: both">
+    <h2> Console Log </h2>
+
+    <textarea id = "console_log" readonly style="width: 100%; min-height:200px;resize: none"> </textarea>
+    <button id="console-clear" onclick = "clearConsole()"> Clear Console </button>
+    <button id="download-results" onclick = "download()"> Download Results </button>
+
+    </div>
+
+    <script src="js/events.js"> </script>
+    <script>
+        var channel ;
+        var caller, callee;
+        var getAudio = false,
+            getVideo = false,
+            getData = false;
+        var isCaller = false;
+        var sendEvents = false;
+        var videoStats = false ;
+        var localStreams = [];
+        var localName;
+        var answer_offer_cration_time = 0 ;
+        var dataChannelOpened = false ;
+        var remoteStreamArrived = false ;
+        function get(id){
+            return document.getElementById(id);
+        }
+        function log (message){
+            var logArea = this.get("console_log");
+            logArea.value += "\n" + message ;
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function download(){
+            var tempBlob = new Blob([dumpBlob], { type: 'octet/stream'});
+            if( detectedBrowser == "Chrome"){
+                tempUrl = window.webkitURL.createObjectURL(tempBlob);
+                window.location.assign(tempUrl);
+            } else{
+                tempUrl = window.URL.createObjectURL(tempBlob);
+                window.location.assign(tempUrl);
+            }
+        }
+
+
+        function clearConsole(){
+            var console = get("console_log");
+            if (console.firstChild)
+                console.value = "";
+        }
+
+        if (!Date.now) {
+            Date.now = function() { return new Date().getTime(); };
+        }
+
+        function saveToDisk(fileUrl, fileName) {
+            var save = document.createElement('a');
+            save.href = fileUrl;
+            save.target = '_blank';
+            save.download = fileName || fileUrl;
+
+            var evt = document.createEvent('MouseEvents');
+            evt.initMouseEvent('click', true, true, window, 1, 0, 0, 0, 0, false, false, false, false, 0, null);
+
+            save.dispatchEvent(evt);
+
+            (window.URL || window.webkitURL).revokeObjectURL(save.href);
+        }
+
+        function populateAVD(){
+            var sessionType = get("session-type").value;
+            if (sessionType == "A" || sessionType == "AV" || sessionType == "AVD" ) getAudio = true;
+            if (sessionType == "V" || sessionType == "AV" || sessionType == "VD"|| sessionType == "AVD" ) getVideo = true;
+            if (sessionType == "D" || sessionType == "VD"|| sessionType == "AVD" ) getData = true;
+        }
+
+    </script>
+    <script src = "socket.io/socket.io.js"> </script>
+    <script src="js/adapter.js"> </script>
+    <script src="js/main.js"> </script>
+    <script>
+        initInputFields();
+        get('verboseButton').onclick = function (){
+            var item = get('verboseButton');
+            if(item.className == "on") {
+                item.className="off";
+                item.value = "No";
+                eventLogger.isVerbose = false ;
+            } else {
+                item.className="on";
+                item.value = "Yes";
+                eventLogger.isVerbose = true ;
+            }
+        };
+        get('sendButton').onclick = function (){
+            var item = get('sendButton');
+            if(item.className == "on") {
+                item.className="off";
+                item.value = "No";
+               sendEvents = false ;
+            } else {
+                item.className="on";
+                item.value = "Yes";
+                sendEvents = true ;
+            }
+        };
+        get('statsButton').onclick = function (){
+            var item = get('statsButton');
+            if(item.className == "on") {
+                item.className="off";
+                item.value = "No";
+                videoStats = false ;
+            } else {
+                item.className="on";
+                item.value = "Yes";
+                videoStats = true ;
+            }
+        };
+
+        get('channel').value = (Math.round(Math.random()*5000));
+        get('timestamp').value = Date.now();
+        // DEALING WITH BUTTON UI
+        // On Opening Channel
+        get('openChannel').onclick = function () {
+            dataChannelOpened = false ;
+            remoteStreamArrived = false ;
+            caller = true;
+            callee = false;
+            get("how-to-use").style.display = "none";
+            var time1 = time();
+            populateAVD();
+            isCaller = true;
+            initConnection(isCaller);
+            get('joinChannel').disabled = true;
+            get('openChannel').disabled = true;
+            get('channel').disabled = true;
+            get('heading').innerHTML = "<h2> "+ get("channel").value + " is active </h2>"
+            //log("Initialized RTC Multi Connection in " + (time()-time1).toString() + "ms");
+            //eventLog(events.TIMING.Init_RTC_Multi_Connection, (time()-time1).toString());
+        };
+
+        // On Storing information
+        get('storeInfo').onclick = function(){
+            localStorage.setItem('processor', get('processor').value);
+            localStorage.setItem('operating-system', get('operating-system').value);
+            localStorage.setItem('browser', get('browser').value);
+            localStorage.setItem('device' , get('device').selectedIndex);
+            localStorage.setItem('verbose', get('verboseButton').className == "on" );
+            localStorage.setItem('sendEvents' , get('sendButton').className == "on" );
+            localStorage.setItem('videoStats' , get('statsButton').className == "on" );
+            log("Info stored at application cache");
+        }
+
+        // On Joining Channel
+        get('joinChannel').onclick = function () {
+            dataChannelOpened = false ;
+            remoteStreamArrived = false ;
+            callee = true;
+            caller = false;
+            get("how-to-use").style.display = "none";
+            populateAVD();
+            get('joinChannel').disabled = true;
+            get('openChannel').disabled = true;
+            var confirm = get('confirmConnection');
+            confirm.disabled = false;
+            confirm.style.display = "block";
+            channel = initConnection(false)
+        };
+        // On Connecting through Channel
+        get('confirmConnection').onclick = function(){
+            if( !caller )
+            {
+
+                log("Sending Callee arrived at " + time().toString()) ;
+                signallingSocket.emit("message",JSON.stringify({
+                        channel:channel,
+                        type: "callee_arrived"
+                        })) ;
+            }
+            get('heading').innerHTML = "<h2> Connected through channel "+ get("channel").value + "</h2>";
+            // log("Initialized RTC Multi Connection in " + (time3-time2).toString() + "ms");
+            //eventLog(events.TIMING.Init_RTC_Multi_Connection, (time3-time2).toString());
+        };
+
+        //DEALING WITH TEXT CHAT UI
+
+        function appendDIV(data) {
+            var chatOutput = get('chat-output');
+            chatOutput.value = data + "\n" +  chatOutput.value ;
+            chatInput.focus();
+        }
+
+        function logError(error) {
+            console.log(error);
+        }
+
+        var chatInput = get('chat-input');
+            chatInput.onkeypress = function (e) {
+            if (e.keyCode !== 13 || !this.value) return;
+            var t1 = time();
+            log("Started Sending Text at " + t1 + "ms  " + time().toString() );
+            dataChannel.send(localName + ": " + this.value);
+            appendDIV("Me" + ": " + this.value);
+            this.value = '';
+        this.focus();
+        };
+    </script>
+    </body>
+    </html>
+
