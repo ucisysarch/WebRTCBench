@@ -36,3 +36,5 @@
 
 .on  { background:lightgreen; value: "Yes"; }
 .off { background:lightgray ; value : "No"; }
+.constraintsOn  { background:lightgreen; min-height: 50px ; min-width: 100px }
+.constraintsOff { background:lightgray ; min-height: 50px; min-width: 100px}

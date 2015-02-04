@@ -1,6 +1,14 @@
 var dumpBlob ="";
-var WAITING_STEPS= 3;
-var COLLECTION_STEPS = 10 ;
+var WAITING_STEPS= 1;
+var COLLECTION_STEPS = 180 ;
+var HD = false ;
+var h264 = false ;
+var vp9 = false ;
+
+
+var googVidSize = "VGA" ; // QVGA, HD
+var dcOrdered = true;
+var mozFakeVideo = false ;
 // Dictionary that will contains experiment settings and WebRTC related events
 var eventLogs = {};
 eventLogs["events"] = {};
@@ -9,7 +17,11 @@ var signallingSocket;
 var dataChannel;
 /**
 * This class collects events and store them into eventLogs dictionary
+* This class collects events and store them into eventLogs dictionary
 */
+var sendBlob = new Blob;
+
+
 var eventLogger = {
     isVerbose : false ,
     addEvent: function(event, timestamp){
@@ -62,6 +74,18 @@ var eventLogger = {
 };
 
 
+
+function DataStats()
+{
+    this.channelId = "";
+    this.bytesSent = 0 ;
+    this.bytesReceived = 0 ; // Current rate (over a second timestamp )
+    this.packetsSent = 0 ;
+}
+
+
+
+
 function VideoStats()
 {
     this.timestamp =0 ;
@@ -77,35 +101,38 @@ function VideoStats()
  */
 function MozStat()
 {
+    // Encoder
+    this.encoderStats = {
 
-    //RTP Stats
-    this.bitRate = 0 ;
-    this.availableReceiveBandwidth = 0 ;
-    this.targetEncodingBitRate = 0 ;
-    this.actualEncodingBitRate = 0 ;
-    this.transmitBitrate = 0 ;
-
-    this.captureFrameRate = 0 ;
-    this.sendFrameRate = 0 ;
-    this.recieveFrameRate = 0 ;
-    this.decodeFramRate = 0 ;
-    this.sendFrameSize = {
-        width : 0 ,
-        height : 0
+        bitRateMean :0 ,
+        bitRateSTDDev:0,
+        frameRateMean:0,
+        frameRateSTDDev:0,
+        droppedFrames:0,
+        bytesSent:0
     };
+    // Decoder
+    this.decoderStats = {
+        bitRateMean :0 ,
+        bitRateSTDDev:0,
+        frameRateMean:0,
+        frameRateSTDDev:0,
+        bytesReceived:0
+    }
+    ;
 
-    this.jitter = 0 ;
+
+    videoStats = {};
+    // Network stuff
+
+    this.videoInputJitter = 0 ;
     this.rtt = 0 ;
     this.sendBitRate =0 ;
     this.packetReceiveRate = 0 ;
     this.packetSendRate =0;
     this.packetsLost = 0 ;
-    this.videoStats = {};
 
 
-    // Coder Stats
-    this.averagBitRate = 0 ;
-    this.averageFrameRate = 0 ;
 }
 
 
@@ -163,6 +190,9 @@ var RmtrenderPerSec = 0;
 var RmtdroppedFrames = 0;
 var RmtdroppedFramesPerSec = 0;
 var tempRmtDecodedFrames = 0;
+
+
+dataStatsCounter = new DataStats();
 
 function Mean() {
     this.count = 0;
@@ -225,7 +255,58 @@ var packetsSent = 0 ;
 var packetsReceived = 0 ;
 var packetsLost = 0 ;
 
+
+function googmakeVp9Default(sdp) {
+    console.log("Offer sdp vp8:" + sdp);
+    updated_sdp = sdp.replace("a=rtpmap:100 VP8/90000\r\n","");
+    updated_sdp = updated_sdp.replace(/m=video ([0-9]+) RTP\/SAVPF ([0-9 ]*) 100 ([0-9 ]*)/g, "m=video $1 RTP\/SAVPF $2 $3");
+    updated_sdp = updated_sdp.replace("a=rtcp-fb:100 nack\r\n","");
+    updated_sdp = updated_sdp.replace("a=rtcp-fb:100 nack pli\r\n","");
+    updated_sdp = updated_sdp.replace("a=rtcp-fb:100 ccm fir\r\n","");
+    updated_sdp = updated_sdp.replace("a=rtcp-fb:100 goog-remb\r\n","");
+    updated_sdp = updated_sdp.replace("a=fmtp:96 apt=100","a=fmtp:96 apt=101");
+
+    console.log("Offer sdp vp9:" + updated_sdp);
+    return updated_sdp;
+}
+
+function mozRemoveVP8(sdp) {
+    console.log("Offer sdp vp8:" + sdp);
+    updated_sdp = sdp.replace("a=rtpmap:120 VP8/90000\r\n","");
+    updated_sdp = updated_sdp.replace(/m=video ([0-9]+) RTP\/SAVPF ([0-9 ]*) 120/g, "m=video $1 RTP\/SAVPF $2");
+    updated_sdp = updated_sdp.replace(/m=video ([0-9]+) RTP\/SAVPF 120([0-9 ]*)/g, "m=video $1 RTP\/SAVPF$2");
+    updated_sdp = updated_sdp.replace("a=rtcp-fb:120 nack\r\n","");
+    updated_sdp = updated_sdp.replace("a=rtcp-fb:120 nack pli\r\n","");
+    updated_sdp = updated_sdp.replace("a=rtcp-fb:120 ccm fir\r\n","");
+    console.log("Offer sdp h264:" + updated_sdp);
+    return updated_sdp;
+}
+var bytesSent = 0;
+var bytesReceived = 0;
+var timer = 0 ;
+var olddbrmean = 0 ;
+var oldebrmean = 0 ;
 if( detectedBrowser == "Firefox" ) {
+
+    function x(stats) {
+        var y = stats;
+       // var results = stats.result();
+        //for (var i = 0; i < results.length; ++i) {
+        //    var res = results[i];
+       // }
+    }
+
+    function collectDataChannelStats(doReport)
+    {
+        if (peerConnection ) {
+            if (peerConnection.getStats) {
+                peerConnection.getStats(null,x,x);
+            }
+        }
+    }
+
+
+
     function recalcRates() {
 
 
@@ -244,8 +325,8 @@ if( detectedBrowser == "Firefox" ) {
         decodedPerSec = (v.mozDecodedFrames - decodedFrames);
         decodedFrames = v.mozDecodedFrames;
 
-        renderPerSec = v.mozPresentedFrames - renderFrames;
-        renderFrames = v.mozPresentedFrames;
+        renderPerSec = v.mozPaintedFrames - renderFrames;
+        renderFrames = v.mozPaintedFrames;
 
         droppedFramesPerSec = v.mozDecodedFrames - v.mozPresentedFrames - droppedFrames;
         droppedFrames = v.mozDecodedFrames - v.mozPresentedFrames ;
@@ -279,8 +360,8 @@ if( detectedBrowser == "Firefox" ) {
         RmtdecodedPerSec = (vRmt.mozDecodedFrames - RmtdecodedFrames);
         RmtdecodedFrames = vRmt.mozDecodedFrames;
 
-        RmtrenderPerSec = vRmt.mozPresentedFrames - RmtrenderFrames;
-        RmtrenderFrames = vRmt.mozPresentedFrames;
+        RmtrenderPerSec = vRmt.mozPaintedFrames - RmtrenderFrames;
+        RmtrenderFrames = vRmt.mozPaintedFrames;
 
         RmtdroppedFramesPerSec = vRmt.mozDecodedFrames - vRmt.mozPresentedFrames - RmtdroppedFrames;
         RmtdroppedFrames = vRmt.mozDecodedFrames - vRmt.mozPresentedFrames ;
@@ -327,8 +408,8 @@ if( detectedBrowser == "Firefox" ) {
                         // Find the bandwidth info for video
                         if (res.type === "inboundrtp") {
                             //audio & video
-                            var mediaType = res.mediaType ;
-                            if( mediaType === "audio")
+
+                            if( res.mediaType === "audio")
                             {
                                 var audioBytesNow = res.bytesReceived;
                                 var audioJitter = res.jitter ;
@@ -336,62 +417,34 @@ if( detectedBrowser == "Firefox" ) {
                                 var audioPacketsLost = res.packetsLost;
                                 var audioPacketsReceived = res.packetsReceived;
                             }
-                            else if ( mediaType === "video")
+                            if ( res.mediaType === "video" && !res.isRemote)
                             {
-                                bytesNow = res.bytesReceived;
-                                mozStats.jitter = res.jitter ;
-                                mozStats.rtt = res.mozRTT ;
-                                mozStats.packetsLost = res.packetsLost;
 
-                                packetsReceived = res.packetsReceived;
-                                var packetsReceivedPerSec = packetsReceived ;
+                                mozStats.decoderStats.bitRateMean = res.bitrateMean ;
+                                mozStats.decoderStats.bitRateSTDDev = res.bitratStdDev ;
+                                mozStats.decoderStats.frameRateMean = res.framerateMean;
+                                mozStats.decoderStats.frameRateSTDDev = res.framerateStdDev;
 
+                                mozStats.decoderStats.bytesReceived = res.bytesReceived -  bytesReceived ;
+                                bytesReceived = res.bytesReceived;
 
-                                if (timestampPrev > 0) {
-                                    var bitRate = Math.round((bytesNow - bytesPrev) * 8 /
-                                        (res.timestamp - timestampPrev));
-                                    mozStats.bitRate = bitRate ;
-                                    bitrateText = bitRate + ' kbits/sec';
-                                    var PacketsReceivedPerSec = Math.round((packetsReceived - PacketsReceivedPrev) * 1000 /
-                                        (res.timestamp - timestampPrev));
-                                    mozStats.packetReceiveRate = PacketsReceivedPerSec ;
-                                }
-                                timestampPrev = res.timestamp;
-                                bytesPrev = bytesNow;
-                                PacketsReceivedPrev = packetsReceived;
+                                mozStats.videoInputJitter = res.jitter;
+
                             }
 
-                        } else if( res.type === "outboundrtp" && ! res.isRemote){
+                        } else if( res.type === "outboundrtp" ){
                             var id = res.id ; // Which channel
-                            var mediaType = res.mediaType ;
-                            if ( mediaType === "video")
+                            if ( res.mediaType === "video" && ! res.isRemote)
                             {
-                                bytesSent = res.bytesSent ;
-                                packetsSent = res.packetsSent ;
-                                var bitrateMean = res.bitrateMean ;
-                                var bitrateStdDev = res.bitrateStdDev ;
-                                var droppedFrame = res.droppedFrames ;
-                                var frameRateMean = res.frameRateMean ;
-                                var framerateStdDev = res.framerateStdDev ;
-
-                                if (timestampPrev > 0) {
-
-
-                                    var SentbitRate = Math.round((bytesSent - SentbytesPrev) * 8 /
-                                        (res.timestamp - SenttimestampPrev));
-                                    mozStats.sendBitRate = SentbitRate ;
-                                    var PacketsSentPerSec = Math.round((packetsSent - PacketsSentPrev) * 1000 /
-                                        (res.timestamp - SenttimestampPrev));
-                                    mozStats.packetSendRate = PacketsSentPerSec ;
-
-
-                                }
-
-                                SenttimestampPrev = res.timestamp;
-                                SentbytesPrev = bytesSent;
-                                PacketsSentPrev = packetsSent;
-
-                            } else if ( mediaType === "audio"){
+                                mozStats.encoderStats.bitRateMean = res.bitrateMean ;
+                                mozStats.encoderStats.bitRateSTDDev = res.bitratStdDev ;
+                                mozStats.encoderStats.frameRateMean = res.framerateMean;
+                                mozStats.encoderStats.frameRateSTDDev = res.framerateStdDev;
+                                mozStats.encoderStats.droppedFrames = res.droppedFrames ;
+                                mozStats.encoderStats.bytesSent = res.bytesSent - bytesSent;
+                                bytesSent = res.bytesSent;
+                            }
+                            if ( res.mediaType === "audio"){
 
                             }
                             timestampPrev = res.timestamp;
@@ -401,10 +454,27 @@ if( detectedBrowser == "Firefox" ) {
                     });
                     if( doReport )
                     {
-                        var result = [   mozStats.packetSendRate  , mozStats.packetReceiveRate , mozStats.packetsLost , mozStats.sendBitRate, mozStats.bitRate   ];
+                       // var result = [  "VInpJitter" , mozStats.videoInputJitter,  " Decode bytesR,br,fr " , mozStats.decoderStats.bytesReceived, mozStats.decoderStats.bitRateMean , mozStats.decoderStats.frameRateMean
+                       //         , "Encode: bytesS,br,fr,df " , mozStats.encoderStats.bytesSent, mozStats.encoderStats.bitRateMean, mozStats.encoderStats.frameRateMean,
+                       //     mozStats.encoderStats.droppedFrames
+                       //    ,"l.render ", videoStats.local.renderRate , "r.render " , videoStats.remote.renderRate
+                       // ];
+
+
+
+                        var result = [ timer ,  " VInpJit" , mozStats.videoInputJitter,  " Decode brm,frm " ,  mozStats.decoderStats.bitRateMean , mozStats.decoderStats.frameRateMean
+                            , "Encode: br,fr,df " , mozStats.encoderStats.bitRateMean, mozStats.encoderStats.frameRateMean,
+                            mozStats.encoderStats.droppedFrames
+                            ,"l.render ", videoStats.local.renderRate , "r.render " , videoStats.remote.renderRate
+                        ];
+
+                        oldebrmean = mozStats.encoderStats.bitRateMean ;
+                        olddbrmean = mozStats.decoderStats.bitRateMean ;
+
                         log(result.join(","));
                         dumpBlob += result.join("\0") + "\n";
-                        statsArray.push(mozStats);
+                        timer = timer + 1 ;
+                        // statsArray.push(mozStats);
 
                     }
                 }, log);
@@ -424,6 +494,36 @@ if( detectedBrowser == "Firefox" ) {
 else if ( detectedBrowser == "Chrome"){
     var d1 = 0;
     var d2  = 0;
+
+    function collectDataChannelStats(doReport)
+    {
+        if (peerConnection ) {
+            chromeStats = new ChromeStats();
+            if (peerConnection.getStats) {
+                peerConnection.getStats(function(stats) {
+                    var results = stats.result();
+                    for (var i = 0; i < results.length; ++i) {
+                        var res = results[i];
+                        if (res.type == 'googCandidatePair' && res.stat('googActiveConnection') == 'true'  ){
+                            var dchannelId = res.stat('googChannelId');
+                            var dbytesSent = res.stat('bytesSent') | 0;
+                            var dbytesReceived = res.stat('bytesReceived') | 0;
+                            var dpacketsSent = res.stat('packetsSent') | 0 ;
+                            var dpacketsDiscardedOnSend =  res.stat('packetsDiscardedOnSend') | 0 ;
+                            var rtt = res.stat('googRtt') | 0;
+
+                            var result = [  "channel: " + dchannelId,  "bytesSent" + dbytesSent ,  "bytesReceived" + dbytesReceived ,
+                                "packetsSent" + dpacketsSent  , "packetsDiscardedOnSend", dpacketsDiscardedOnSend  , "rtt" , rtt
+                            ];
+                            log(result.join(","));
+                        }
+                    }
+                });
+            }
+        }
+    }
+
+
     function recalcRates() {
         var localVideoStats = new VideoStats();
         var remoteVideoStats = new VideoStats();
@@ -506,7 +606,7 @@ else if ( detectedBrowser == "Chrome"){
     // Statistics
     function collectStats(doReport)
     {
-        if (peerConnection && peerConnection.getRemoteStreams()[0]) {
+        if (peerConnection ) { //TODO } && peerConnection.getRemoteStreams()[0]) {
             chromeStats = new ChromeStats();
             if (peerConnection.getStats) {
                 peerConnection.getStats(function(stats) {
@@ -620,10 +720,10 @@ else if ( detectedBrowser == "Chrome"){
 
 //Capturer/Sender/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketLoss/Txbitrate/RxBitrate/SenderBandwidth/ReceiverBandwidth
 
-
+                    timer = timer + 1 ;
                     if( doReport )
                     {
-                        var result = [chromeStats.sendFrameSize.width + "*" + chromeStats.sendFrameSize.height , chromeStats.captureFrameRate  , chromeStats.sendFrameRate , chromeStats.videoStats.local.renderRate , chromeStats.videoStats.local.dropRate, chromeStats.recieveFrameRate  , chromeStats.decodeFramRate , chromeStats.videoStats.remote.renderRate , chromeStats.videoStats.remote.dropRate , chromeStats.targetEncodingBitRate  , chromeStats.actualEncodingBitRate , chromeStats.packetSendRate  , chromeStats.packetReceiveRate , chromeStats.packetsLost , chromeStats.sendBitRate, chromeStats.bitRate ,chromeStats.availableSentBandwidth  , chromeStats.availableReceiveBandwidth , chromeStats.transmitBitrate ];
+                        var result = [timer, chromeStats.sendFrameSize.width + "*" + chromeStats.sendFrameSize.height , chromeStats.captureFrameRate  , chromeStats.sendFrameRate , chromeStats.videoStats.local.renderRate , chromeStats.videoStats.local.dropRate, chromeStats.recieveFrameRate  , chromeStats.decodeFramRate , chromeStats.videoStats.remote.renderRate , chromeStats.videoStats.remote.dropRate , chromeStats.targetEncodingBitRate  , chromeStats.actualEncodingBitRate , chromeStats.packetSendRate  , chromeStats.packetReceiveRate , chromeStats.packetsLost , chromeStats.sendBitRate, chromeStats.bitRate ,chromeStats.availableSentBandwidth  , chromeStats.availableReceiveBandwidth , chromeStats.transmitBitrate ];
                         log(result.join(","));
                         dumpBlob += result.join("\0") + "\n";
                         statsArray.push(chromeStats);
@@ -758,16 +858,33 @@ function initInputFields(){
     }
     if( localStorage.getItem('videoStats') != null ){
         if( localStorage.getItem('videoStats') == "true" ) {
-            window.get('statsButton').className = "on";
-            window.get('statsButton').value = "Yes";
+            window.get('vStatsButton').className = "on";
+            window.get('vStatsButton').value = "Yes";
             videoStats = true;
         }
         else {
-            window.get('statsButton').className = "off";
-            window.get('statsButton').value = "No";
+            window.get('vStatsButton').className = "off";
+            window.get('vStatsButton').value = "No";
             videoStats = false ;
         }
     }
+    if( localStorage.getItem('dataStats') != null ){
+        if( localStorage.getItem('dataStats') == "true" ) {
+            window.get('dStatsButton').className = "on";
+            window.get('dStatsButton').value = "Yes";
+            dataStats = true;
+        }
+        else {
+            window.get('dStatsButton').className = "off";
+            window.get('dStatsButton').value = "No";
+            dataStats = false ;
+        }
+    }
+
+    //
+
+
+
 }
 
 //This function gets current time in milliseconds
@@ -792,9 +909,25 @@ function sendEventLogs(){
     }
 	var update = JSON.stringify(eventLogs);
 	signallingSocket.emit('events',update);
-}	
+}
 
-statsArray = [] ;
+
+function addFiles(files) {
+
+    var f = files[0];
+    if (f) {
+        var reader = new FileReader();
+        var blob = new Blob;
+        // Closure to capture the file information.
+        reader.onload = function (file) {
+            if( reader.readyState == FileReader.DONE ) {
+                sendBlob = file.target.result;
+            }
+        };
+        //reader.readAsDataURL(f);
+        reader.readAsArrayBuffer(f);
+    }
+}
 
 //This method will be called by caller side, and initiate a WebRTC connection
 function initConnection(caller) {
@@ -807,14 +940,15 @@ function initConnection(caller) {
     // create the WebRTC peer connection object
     var options = {
         "optional": [
-            {DtlsSrtpKeyAgreement: true},
-            {RtpDataChannels: getData}
+            {DtlsSrtpKeyAgreement: true}//,
+            //{RtpDataChannels: getData}
         ]
     };
     options = undefined; // For interoperability between Chrome and FF32+
-    peerConnection = new RTCPeerConnection(server, options);
+    peerConnection = new RTCPeerConnection(null,null);//server, options);
     eventLogger.verbose(events.Events.PC_CREATED, time());
     peerConnection.oniceconnectionstatechange = function (ice_state) {
+        log( peerConnection.iceGatheringState + " " + peerConnection.iceConnectionState );
         if (peerConnection.iceConnectionState == "connected") {
             eventLogger.info(events.Events.ICE_CONNECTED, time());
         }
@@ -843,17 +977,24 @@ function initConnection(caller) {
             var media = document.createElement(getAudio && !getVideo ? 'audio' : 'video');
             media.id = "remoteView0";
             if( getVideo ){
-                media.setAttribute("width", "320");
-                media.setAttribute("height", "240");
+                //media.setAttribute("width", "320");
+                //media.setAttribute("height", "240");
             }
             var status = document.createElement('div');
             status.id = "rmtStatus";
-            if (window.URL) {
-                media.src = window.URL.createObjectURL(event.stream);
+
+            if (detectedBrowser == "Chrome") {
+                media.src = webkitURL.createObjectURL(event.stream);
+                media.autoplay = true;
             } else {
-                media.src = event.stream;
+                if (window.URL) {
+                    media.src = window.URL.createObjectURL(event.stream);
+                } else {
+                    media.src = stream;
+                }
+                media.play();
             }
-            media.play();
+
             var interval_r;
             media.addEventListener('play', function () {
                 interval_r = setInterval(function () {
@@ -870,6 +1011,9 @@ function initConnection(caller) {
             }, false);
             window.get("remote-streams").appendChild(media);
             window.get("remote-streams").appendChild(status);
+
+
+
             if( videoStats ) {
                 var stepsRemained = WAITING_STEPS;
                 var statCollector = setInterval(function () {
@@ -927,17 +1071,54 @@ function initConnection(caller) {
         getMedia();
     }
     if (getData) {
+       // var onMessage = function (event) {
+       //     var t_msg = time();
+       //     appendDIV(event.data);
+       //     log("Text message received at " + t_msg.toString());
+       // };
+
         var onMessage = function (event) {
-            var t_msg = time();
-            appendDIV(event.data);
-            log("Text message received at " + t_msg.toString());
+            var t_msg = time() ;
+            var blob = event.data; // Firefox allows sending blobs directly
+            //saveToDisk(blob, 'fake');
+            if( typeof blob === "object" )
+            {
+                var blob = new Blob([event.data], {type:"image/png"});
+                var reader = new FileReader();
+                reader.onload = function(file) {
+                    if (reader.readyState == FileReader.DONE) {
+                        log("File received at " + time().toString() );
+                        //document.getElementById("dataChannelReceive").src = file.target.result;
+                        console.log("File gotten");
+                        saveToDisk(file.target.result, 'fake');
+                    }
+                }
+                reader.readAsDataURL(blob);
+            }
+            else
+            {
+               if( blob.toString() == "ping"){
+                   dataChannel.send("pong");
+                   //log("ping received at " + t_msg.toString() ) ;
+               }
+               else if( blob.toString() == "pong"){
+                    log("pong received at " + t_msg.toString() ) ;
+               } else {
+                   log("text received at " + t_msg.toString() ) ;
+                   appendDIV(event.data);
+               }
+
+            }
         };
+
         if (caller) {
-            var dataChannelOptions = {
+            var dataChannelOptions = dcOrdered ? {
+                ordered: true
+            } : {
                 ordered: false, // do not guarantee order
                 maxRetransmitTime: 3000 // in milliseconds
-            };
-            dataChannel = peerConnection.createDataChannel("dc1", {});
+            } ;
+            dataChannel = peerConnection.createDataChannel("dc1", dataChannelOptions);
             eventLogger.verbose(events.Events.CREATING_DATA_CHANNEL, time());
             dataChannel.onerror = function (error) {
                 log("Data Channel Error:" + error);
@@ -950,6 +1131,11 @@ function initConnection(caller) {
                 if (sendEvents && ! videoStats && ( (!getAudio && !getVideo) || (remoteStreamArrived) ) ) {
                     sendEventLogs();
                 }
+                var sendButton = get('sendbtn');
+                sendButton.onclick =  function(){
+                    log("Started Sending file at " + time().toString() );
+                    dataChannel.send(sendBlob);
+                };
             };
             dataChannel.onclose = function () {
                 log("The Data Channel is closed");
@@ -971,12 +1157,28 @@ function initConnection(caller) {
                     if (sendEvents && !videoStats && (  (!getAudio && !getVideo) || remoteStreamArrived )) {
                         sendEventLogs();
                     }
+                    var sendButton = get('sendbtn');
+                    sendButton.onclick =  function(){
+                        log("Started Sending file at " + time().toString() );
+                        dataChannel.send(sendBlob);
+                    };
                 };
                 dataChannel.onclose = function () {
                     log("The Data Channel is closed");
                 };
             }
         }
+
+        if( dataStats ){
+            var statCollector = setInterval(function () {
+                if (dataChannelOpened) {
+                    //if (detectedBrowser == "Chrome") {
+                        collectDataChannelStats();
+                    //}
+                }
+            }, 1000);
+        }
+
     }
     // Open Connection to Signalling Server
     var signallingServer = '/';
@@ -1000,13 +1202,20 @@ function initConnection(caller) {
     }
 }
 
-function onNewDescriptionCreated(description) {
+function onNewDescriptionCreatedAnswer(description) {
     if (caller) {
         eventLogger.info(events.Events.OFFER_CREATED, time().toString());
     }
     else {
         eventLogger.info(events.Events.ANSWER_CREATED, time().toString());
     }
+
+    if ( h264 && (!description.sdp.match(/a=rtpmap:[0-9]+ H264/g))) {
+        log("No H264 found in the answer!!!");
+    } else{
+        log("welldone");
+    }
+
     peerConnection.setLocalDescription(description, function () {
             signallingSocket.emit("message",
                 JSON.stringify({
@@ -1020,6 +1229,46 @@ function onNewDescriptionCreated(description) {
     );
 }
 
+function onNewDescriptionCreatedOffer(description) {
+    if (caller) {
+        eventLogger.info(events.Events.OFFER_CREATED, time().toString());
+    }
+    else {
+        eventLogger.info(events.Events.ANSWER_CREATED, time().toString());
+    }
+
+
+    if( h264 ){
+        description.sdp = mozRemoveVP8(description.sdp)
+    }
+    if( vp9 ){
+        description.sdp = googmakeVp9Default(description.sdp);
+    }
+
+    peerConnection.setLocalDescription(description, function () {
+            signallingSocket.emit("message",
+                JSON.stringify({
+                    channel: channel,
+                    type: "new_description",
+                    sdp: description
+                })
+            );
+        },
+        logError
+    );
+}
+
+
+
+function onAddIceCandidateSuccess() {
+    log('AddIceCandidate success.');
+}
+
+function onAddIceCandidateError(error) {
+    log('Failed to add Ice Candidate: ' + error.toString());
+}
+
+
 // handle signals received by caller
 function callerSignalHandler(event) {
     var signal = JSON.parse(event);
@@ -1027,16 +1276,20 @@ function callerSignalHandler(event) {
         eventLogger.info(events.Events.CALLEE_ARRIVED, time());
         eventLogger.info(events.Events.CREATING_OFFER, time());
         peerConnection.createOffer(
-            onNewDescriptionCreated,
+            onNewDescriptionCreatedOffer,
             logError
         );
     } else if (signal.type === "new_ice_candidate") {
         peerConnection.addIceCandidate(
-            new RTCIceCandidate(signal.candidate)
+            new RTCIceCandidate(signal.candidate),
+            onAddIceCandidateSuccess, onAddIceCandidateError
         );
     } else if (signal.type === "new_description") {
+        log("caller");
         eventLogger.verbose(events.Events.SETTING_REMOTE_DESCRIPTION, time());
+        console.log(signal.sdp);
         peerConnection.setRemoteDescription(
+
             new RTCSessionDescription(signal.sdp),
             function () {
                 eventLogger.verbose(events.Events.REMOTE_DESCRIPTION_SET, time());
@@ -1051,9 +1304,11 @@ function calleeSignalHandler(event) {
     var signal = JSON.parse(event);
     if (signal.type === "new_ice_candidate") {
         peerConnection.addIceCandidate(
-            new RTCIceCandidate(signal.candidate)
+            new RTCIceCandidate(signal.candidate),
+            onAddIceCandidateSuccess, onAddIceCandidateError
         );
     } else if (signal.type === "new_description") {
+        log("callee");
         eventLogger.verbose(events.Events.SETTING_REMOTE_DESCRIPTION, time());
         peerConnection.setRemoteDescription(
             new RTCSessionDescription(signal.sdp),
@@ -1061,7 +1316,7 @@ function calleeSignalHandler(event) {
                 eventLogger.verbose(events.Events.REMOTE_DESCRIPTION_SET, time());
                 if (peerConnection.remoteDescription.type == "offer") {
                     eventLogger.verbose(events.Events.CREATING_ANSWER, time());
-                    peerConnection.createAnswer(onNewDescriptionCreated, logError);
+                    peerConnection.createAnswer(onNewDescriptionCreatedAnswer, logError);
                 }
             }, logError);
     }
@@ -1070,13 +1325,19 @@ function calleeSignalHandler(event) {
 // Get User Media
 function getMedia() {
     eventLogger.verbose(events.Events.GETTING_MEDIA, time());
-    var video_constraints = {optional: [], mandatory: {minHeight: 320, minWidth: 640}};
-    video_constraints = true;
+    var video_constraints = HD? {optional: [], mandatory: {minHeight: 720, minWidth: 1280}} : {optional: [], mandatory: { minFrameRate: 30, maxHeight: 480, maxWidth: 640,minHeight: 480, minWidth: 640}};
     getUserMedia(
+        ( detectedBrowser == "Firefox" && mozFakeVideo ) ?
         {
             audio: getAudio,
-            video: getVideo // ? video_constraints : false
-        }, streaming, function (e) {
+            video: getVideo  ? true : false,
+            fake:true}
+            :
+        {
+            audio: getAudio,
+          video: getVideo ? true : false
+}
+              , streaming, function (e) {
             console.error(e);
             log(e);
         });
@@ -1084,8 +1345,8 @@ function getMedia() {
         eventLogger.verbose(events.Events.LOCAL_MEDIA_CAPTURED, time());
         var localMedia = document.createElement((getAudio && !getVideo) ? 'audio' : 'video');
         if( getVideo ){
-            localMedia.setAttribute("width", "320");
-            localMedia.setAttribute("height", "240");
+           // localMedia.setAttribute("width", "640");
+          //  localMedia.setAttribute("height", "480");
         }
         localMedia.id = "localView";
         if (detectedBrowser == "Chrome") {
@@ -1101,16 +1362,39 @@ function getMedia() {
 
 
         var interval_f;
+        //localMedia.addEventListener('playing', function () {
+        //    interval_f = setInterval(function () {
+        //            eventLogger.info(events.Events.LOCAL_PLAYBACK_STARTED, time());
+        //            log("W:" + localMedia.videoWidth + " H:" + localMedia.videoHeight);
+        //            clearInterval(interval_f);
+
+        //    }, 50);
+        //}, false);
+
+
         localMedia.addEventListener('play', function () {
-            interval_f = setInterval(function () {
-                //TODO case audio, check with the approach of stats
-                if (localMedia.videoWidth != 0) {
-                    eventLogger.info(events.Events.LOCAL_PLAYBACK_STARTED, time());
-                    log("W:" + localMedia.videoWidth + " H:" + localMedia.videoHeight);
-                    clearInterval(interval_f);
-                }
-            }, 50);
+            log("onplay @" + time() );
         }, false);
+
+
+        localMedia.addEventListener('play', function () {
+            log("onplaying @" + time() );
+        }, false);
+
+
+        localMedia.addEventListener('canplay', function () {
+            log("oncanplay @" + time() );
+        }, false);
+
+
+        localMedia.addEventListener('canplaythrough', function () {
+            log("canplaythrough @" + time() );
+        }, false);
+
+
+
+
+
         localMedia.play();
         peerConnection.addStream(stream);
         window.get("local-streams").appendChild(localMedia);
