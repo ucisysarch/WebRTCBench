@@ -316,71 +316,75 @@ if( detectedBrowser == "Firefox" ) {
 
 
         var v = this.get("localView");
-        if (v.readyState <= HTMLMediaElement.HAVE_CURRENT_DATA || v.paused) {
-            return {
-                local:localVideoStats,
-                remote:remoteVideoStats
-            };
+        if( v  ){
+            if (v.readyState <= HTMLMediaElement.HAVE_CURRENT_DATA || v.paused) {
+                return {
+                    local:localVideoStats,
+                    remote:remoteVideoStats
+                };
+            }
+            decodedPerSec = (v.mozDecodedFrames - decodedFrames);
+            decodedFrames = v.mozDecodedFrames;
+
+            renderPerSec = v.mozPaintedFrames - renderFrames;
+            renderFrames = v.mozPaintedFrames;
+
+            droppedFramesPerSec = v.mozDecodedFrames - v.mozPresentedFrames - droppedFrames;
+            droppedFrames = v.mozDecodedFrames - v.mozPresentedFrames ;
+
+
+            decodedMean.record(renderPerSec);
+            dropMean.record(droppedFramesPerSec);
+
+            if((tempDecodedFrames - decodedFrames) != 0){
+                tempDecodedFrames = decodedFrames;
+            }
+
+            localVideoStats.decodedFrames = decodedFrames ;
+            localVideoStats.decodeRate = decodedPerSec ;
+            localVideoStats.renderedFrames = renderFrames ;
+            localVideoStats.renderRate = renderPerSec ;
+            localVideoStats.droppedFrames = droppedFrames ;
+            localVideoStats.dropRate = droppedFramesPerSec ;
+
+
         }
-        decodedPerSec = (v.mozDecodedFrames - decodedFrames);
-        decodedFrames = v.mozDecodedFrames;
-
-        renderPerSec = v.mozPaintedFrames - renderFrames;
-        renderFrames = v.mozPaintedFrames;
-
-        droppedFramesPerSec = v.mozDecodedFrames - v.mozPresentedFrames - droppedFrames;
-        droppedFrames = v.mozDecodedFrames - v.mozPresentedFrames ;
-
-
-        decodedMean.record(renderPerSec);
-        dropMean.record(droppedFramesPerSec);
-
-        if((tempDecodedFrames - decodedFrames) != 0){
-            tempDecodedFrames = decodedFrames;
-        }
-
-        localVideoStats.decodedFrames = decodedFrames ;
-        localVideoStats.decodeRate = decodedPerSec ;
-        localVideoStats.renderedFrames = renderFrames ;
-        localVideoStats.renderRate = renderPerSec ;
-        localVideoStats.droppedFrames = droppedFrames ;
-        localVideoStats.dropRate = droppedFramesPerSec ;
-
 
 
         var vRmt = get("remoteView0");
 
-        if(vRmt.readyState <= HTMLMediaElement.HAVE_CURRENT_DATA || vRmt.paused) {
-            return {
-                local:localVideoStats,
-                remote:remoteVideoStats
-            };
+        if( vRmt ) {
+            if (vRmt.readyState <= HTMLMediaElement.HAVE_CURRENT_DATA || vRmt.paused) {
+                return {
+                    local: localVideoStats,
+                    remote: remoteVideoStats
+                };
+            }
+
+            RmtdecodedPerSec = (vRmt.mozDecodedFrames - RmtdecodedFrames);
+            RmtdecodedFrames = vRmt.mozDecodedFrames;
+
+            RmtrenderPerSec = vRmt.mozPaintedFrames - RmtrenderFrames;
+            RmtrenderFrames = vRmt.mozPaintedFrames;
+
+            RmtdroppedFramesPerSec = vRmt.mozDecodedFrames - vRmt.mozPresentedFrames - RmtdroppedFrames;
+            RmtdroppedFrames = vRmt.mozDecodedFrames - vRmt.mozPresentedFrames;
+
+
+            RmtdecodedMean.record(RmtrenderPerSec);
+            RmtdropMean.record(RmtdroppedFramesPerSec);
+
+            if ((RmtdecodedFrames - tempRmtDecodedFrames) != 0) {
+                tempRmtDecodedFrames = RmtdecodedFrames;
+            }
+
+            remoteVideoStats.decodedFrames = RmtdecodedFrames;
+            remoteVideoStats.decodeRate = RmtdecodedPerSec;
+            remoteVideoStats.renderedFrames = RmtrenderFrames;
+            remoteVideoStats.renderRate = RmtrenderPerSec;
+            remoteVideoStats.droppedFrames = RmtdroppedFrames;
+            remoteVideoStats.dropRate = RmtdroppedFramesPerSec;
         }
-
-        RmtdecodedPerSec = (vRmt.mozDecodedFrames - RmtdecodedFrames);
-        RmtdecodedFrames = vRmt.mozDecodedFrames;
-
-        RmtrenderPerSec = vRmt.mozPaintedFrames - RmtrenderFrames;
-        RmtrenderFrames = vRmt.mozPaintedFrames;
-
-        RmtdroppedFramesPerSec = vRmt.mozDecodedFrames - vRmt.mozPresentedFrames - RmtdroppedFrames;
-        RmtdroppedFrames = vRmt.mozDecodedFrames - vRmt.mozPresentedFrames ;
-
-
-        RmtdecodedMean.record(RmtrenderPerSec);
-        RmtdropMean.record(RmtdroppedFramesPerSec);
-
-        if((RmtdecodedFrames - tempRmtDecodedFrames) != 0){
-            tempRmtDecodedFrames = RmtdecodedFrames;
-        }
-
-        remoteVideoStats.decodedFrames = RmtdecodedFrames ;
-        remoteVideoStats.decodeRate = RmtdecodedPerSec ;
-        remoteVideoStats.renderedFrames = RmtrenderFrames ;
-        remoteVideoStats.renderRate = RmtrenderPerSec ;
-        remoteVideoStats.droppedFrames = RmtdroppedFrames ;
-        remoteVideoStats.dropRate = RmtdroppedFramesPerSec ;
-
 
         return {
             local:localVideoStats,
@@ -389,7 +393,7 @@ if( detectedBrowser == "Firefox" ) {
 
     }
     function collectStats(doReport){
-        if (peerConnection && peerConnection.getRemoteStreams()[0]) {
+        if (peerConnection && ( peerConnection.getRemoteStreams()[0]  || peerConnection.getLocalStreams()[0]  ) ) {
             if (peerConnection.getStats) {
                 peerConnection.getStats(null, function(stats) {
                     var mozStats = new MozStat;
@@ -533,71 +537,70 @@ else if ( detectedBrowser == "Chrome"){
         var v = this.get("localView");
 
 
-        if (v.readyState <= HTMLMediaElement.HAVE_CURRENT_DATA || v.paused) {
-            return {
-                local:localVideoStats,
-                remote:remoteVideoStats
-            };
+        if (v ) {
+            if( v.readyState <= HTMLMediaElement.HAVE_CURRENT_DATA || v.paused ) {
+                return {
+                    local: localVideoStats,
+                    remote: remoteVideoStats
+                };
+            }
+
+            decodedPerSec = (v.webkitDecodedFrameCount - decodedFrames);
+            decodedFrames = v.webkitDecodedFrameCount;
+            droppedFramesPerSec = v.webkitDroppedFrameCount - droppedFrames;
+            droppedFrames = v.webkitDroppedFrameCount;
+
+            renderFrames = decodedFrames - droppedFrames;
+            renderPerSec = decodedPerSec - droppedFramesPerSec;
+
+            decodedMean.record(renderPerSec);
+            dropMean.record(droppedFramesPerSec);
+
+            if ((tempDecodedFrames - decodedFrames) != 0) {
+                tempDecodedFrames = decodedFrames;
+            }
+            localVideoStats.decodedFrames = decodedFrames;
+            localVideoStats.decodeRate = decodedPerSec;
+            localVideoStats.renderedFrames = renderFrames;
+            localVideoStats.renderRate = renderPerSec;
+            localVideoStats.droppedFrames = droppedFrames;
+            localVideoStats.dropRate = droppedFramesPerSec;
         }
-
-
-        decodedPerSec = (v.webkitDecodedFrameCount - decodedFrames);
-        decodedFrames = v.webkitDecodedFrameCount;
-        droppedFramesPerSec = v.webkitDroppedFrameCount - droppedFrames;
-        droppedFrames = v.webkitDroppedFrameCount;
-
-        renderFrames = decodedFrames - droppedFrames;
-        renderPerSec = decodedPerSec - droppedFramesPerSec;
-
-        decodedMean.record(renderPerSec);
-        dropMean.record(droppedFramesPerSec);
-
-        if((tempDecodedFrames - decodedFrames) != 0){
-            tempDecodedFrames = decodedFrames;
-        }
-        localVideoStats.decodedFrames = decodedFrames ;
-        localVideoStats.decodeRate = decodedPerSec ;
-        localVideoStats.renderedFrames = renderFrames ;
-        localVideoStats.renderRate = renderPerSec ;
-        localVideoStats.droppedFrames = droppedFrames ;
-        localVideoStats.dropRate = droppedFramesPerSec ;
-
         var vRmt = get("remoteView0");
-
-        if(vRmt.readyState <= HTMLMediaElement.HAVE_CURRENT_DATA || vRmt.paused) {
-            return {
-                local:localVideoStats,
-                remote:remoteVideoStats
+         if( vRmt ) {
+            if( vRmt.readyState <= HTMLMediaElement.HAVE_CURRENT_DATA || vRmt.paused) {
+                return {
+                    local:localVideoStats,
+                    remote:remoteVideoStats
             };
+            }
+
+            RmtdecodedPerSec = (vRmt.webkitDecodedFrameCount - RmtdecodedFrames);
+            RmtdecodedFrames = vRmt.webkitDecodedFrameCount;
+
+            RmtdroppedFramesPerSec = vRmt.webkitDroppedFrameCount - RmtdroppedFrames;
+            RmtdroppedFrames = vRmt.webkitDroppedFrameCount;
+
+            RmtrenderFrames = RmtdecodedFrames - RmtdroppedFrames;
+            RmtrenderPerSec = RmtdecodedPerSec - RmtdroppedFramesPerSec;
+
+            RmtdecodedMean.record(RmtrenderPerSec);
+            d1 = RmtdecodedMean.mean();
+
+            RmtdropMean.record(RmtdroppedFramesPerSec);
+
+            remoteVideoStats.decodedFrames = RmtdecodedFrames;
+            remoteVideoStats.decodeRate = RmtdecodedPerSec;
+            remoteVideoStats.renderedFrames = RmtrenderFrames;
+            remoteVideoStats.renderRate = RmtrenderPerSec;
+            remoteVideoStats.droppedFrames = RmtdroppedFrames;
+            remoteVideoStats.dropRate = RmtdroppedFramesPerSec;
+
+
+            if ((RmtdecodedFrames - tempRmtDecodedFrames) != 0) {
+                tempRmtDecodedFrames = RmtdecodedFrames;
+            }
         }
-
-        RmtdecodedPerSec = (vRmt.webkitDecodedFrameCount - RmtdecodedFrames);
-        RmtdecodedFrames = vRmt.webkitDecodedFrameCount;
-
-        RmtdroppedFramesPerSec = vRmt.webkitDroppedFrameCount - RmtdroppedFrames;
-        RmtdroppedFrames = vRmt.webkitDroppedFrameCount;
-
-        RmtrenderFrames = RmtdecodedFrames - RmtdroppedFrames;
-        RmtrenderPerSec = RmtdecodedPerSec - RmtdroppedFramesPerSec;
-
-        RmtdecodedMean.record(RmtrenderPerSec);
-        d1 = RmtdecodedMean.mean();
-
-        RmtdropMean.record(RmtdroppedFramesPerSec);
-
-        remoteVideoStats.decodedFrames = RmtdecodedFrames ;
-        remoteVideoStats.decodeRate = RmtdecodedPerSec ;
-        remoteVideoStats.renderedFrames = RmtrenderFrames ;
-        remoteVideoStats.renderRate = RmtrenderPerSec ;
-        remoteVideoStats.droppedFrames = RmtdroppedFrames ;
-        remoteVideoStats.dropRate = RmtdroppedFramesPerSec ;
-
-
-
-        if((RmtdecodedFrames - tempRmtDecodedFrames) != 0){
-            tempRmtDecodedFrames = RmtdecodedFrames;
-        }
-
         return {
             local:localVideoStats,
             remote:remoteVideoStats
@@ -970,13 +973,13 @@ function initConnection(caller) {
             }
         }
     };
-    if (getVideo || getAudio) {
+    if (getVideo || getAudio || receiveAudio || receiveVideo ) {
         peerConnection.onaddstream = function (event) {
             eventLogger.info(events.Events.REMOTE_STREAM_ARRIVED, time());
             remoteStreamArrived = true;
-            var media = document.createElement(getAudio && !getVideo ? 'audio' : 'video');
+            var media = document.createElement(receiveAudio && !receiveVideo ? 'audio' : 'video');
             media.id = "remoteView0";
-            if( getVideo ){
+            if( receiveVideo ){
                 //media.setAttribute("width", "320");
                 //media.setAttribute("height", "240");
             }
@@ -1018,19 +1021,9 @@ function initConnection(caller) {
                 var stepsRemained = WAITING_STEPS;
                 var statCollector = setInterval(function () {
 
-                    // Collect some stats from the video tags.
-                    local_video = get('localView');
-                    if (local_video) {
-                        //get('local-video-stats').innerHTML = local_video.videoWidth +
-                        //    'x' + local_video.videoHeight;
-                    }
+
                     remoteVideo = get('remoteView0');
-                    if (remoteVideo) {
-
-
-                        stepsRemained--;
-                        //get('remote-video-stats').innerHTML = remote_video.videoWidth +
-                        //    'x' + remote_video.videoHeight;
+                    if (remoteVideo  ) {
                         if (stepsRemained === 0) {
                             if( detectedBrowser == "Chrome")
                                 log("Capturer/Sender/LocalRender/LocalRenderDropped/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate/AvbSent/AvbReceived/TransmitBitrate");
@@ -1040,35 +1033,28 @@ function initConnection(caller) {
                             get("rmtStatus").innerHTML = remoteVideo.videoWidth + "x" + remoteVideo.videoHeight + "<br>" +
                                 "Stats finished ";
                             sendEventLogs();
-                            //statsArray.forEach(function (stats) {
-                            //    var result = stats.sendFrameSize.width + "*" + stats.sendFrameSize.height + " " + stats.captureFrameRate + " " + stats.sendFrameRate + " " + stats.videoStats.local.renderRate + " " + stats.videoStats.local.dropRate + " " + stats.recieveFrameRate + " " + stats.decodeFramRate + " " + stats.videoStats.remote.renderRate + " " + stats.videoStats.remote.dropRate + " " + stats.targetEncodingBitRate + " " + stats.actualEncodingBitRate + " " + stats.packetSendRate + " " + stats.packetReceiveRate + " " + stats.packetsLost + " " + stats.sendBitRate + " " + stats.bitRate + " " + stats.availableSentBandwidth + " " + stats.recieveFrameRate + " " + stats.transmitBitrate;
-                            //    log(result);
-                            //});
-
                         }
                         else if (stepsRemained < 0) {
                             get("rmtStatus").innerHTML = remoteVideo.videoWidth + "x" + remoteVideo.videoHeight;
-
-
                         } else {
                             get("rmtStatus").innerHTML = remoteVideo.videoWidth + "x" + remoteVideo.videoHeight + "<br>" +
                                 "Stats begin in " + stepsRemained + " seconds";
                         }
-
                         if (stepsRemained <= 0 && stepsRemained > -1*COLLECTION_STEPS)
                             collectStats(true);
                         else
                             collectStats(false);
-
                     }
 
+                    --stepsRemained;
                 }, 1000);
             }
         };
         peerConnection.onremovestream = function (event) {
             log('Remote stream removed.');
         };
-        getMedia();
+        if( getAudio || getVideo )
+            getMedia();
     }
     if (getData) {
        // var onMessage = function (event) {
@@ -1329,13 +1315,13 @@ function getMedia() {
     getUserMedia(
         ( detectedBrowser == "Firefox" && mozFakeVideo ) ?
         {
-            audio: getAudio,
+            audio: getAudio? true : false,
             video: getVideo  ? true : false,
             fake:true}
             :
         {
-            audio: getAudio,
-          video: getVideo ? true : false
+            audio: getAudio? true : false,
+            video: getVideo ? true : false
 }
               , streaming, function (e) {
             console.error(e);
@@ -1360,17 +1346,8 @@ function getMedia() {
             }
         }
 
-
-        var interval_f;
-        //localMedia.addEventListener('playing', function () {
-        //    interval_f = setInterval(function () {
-        //            eventLogger.info(events.Events.LOCAL_PLAYBACK_STARTED, time());
-        //            log("W:" + localMedia.videoWidth + " H:" + localMedia.videoHeight);
-        //            clearInterval(interval_f);
-
-        //    }, 50);
-        //}, false);
-
+        var status = document.createElement('div');
+        status.id = "localStatus";
 
         localMedia.addEventListener('play', function () {
             log("onplay @" + time() );
@@ -1397,8 +1374,37 @@ function getMedia() {
 
         localMedia.play();
         peerConnection.addStream(stream);
-        window.get("local-streams").appendChild(localMedia);
+        if (receiveVideo == false) {
+            var stepsRemained = WAITING_STEPS;
+            var statCollector = setInterval(function () {
 
+
+                if (stepsRemained === 0) {
+                    if (detectedBrowser == "Chrome")
+                        log("Capturer/Sender/LocalRender/LocalRenderDropped/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate/AvbSent/AvbReceived/TransmitBitrate");
+                    else if (detectedBrowser == "Firefox")
+                        log("PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate");
+                } else if (stepsRemained == -1 * COLLECTION_STEPS) {
+                    get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight + "<br>" +
+                        "Stats finished ";
+                    sendEventLogs();
+                }
+                else if (stepsRemained < 0) {
+                    get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight;
+                } else {
+                    get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight + "<br>" +
+                        "Stats begin in " + stepsRemained + " seconds";
+                }
+                if (stepsRemained <= 0 && stepsRemained > -1 * COLLECTION_STEPS)
+                    collectStats(true);
+                else
+                    collectStats(false);
+
+                --stepsRemained;
+            }, 1000);
+        }
+        window.get("local-streams").appendChild(localMedia);
+        window.get("local-streams").appendChild(status);
     }
 }
 

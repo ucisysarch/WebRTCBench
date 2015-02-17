@@ -40,6 +40,8 @@
             <option value="D"> Data </option>
             <option value="VD"> Video+Data </option>
             <option value="AVD"> Video+Audio+Data </option>
+            <option value="BVS"> Broadcast Send (V)  </option>
+            <option value="BVR"> Broadcast Receive (V) </option>
         </select>
         <br>
         <input type="text" id="channel" value="channel">
@@ -154,6 +156,8 @@
     var getAudio = false,
             getVideo = false,
             getData = false;
+    var receiveVideo = false,
+            receiveAudio = false;
     var isCaller = false;
     var sendEvents = false;
     var videoStats = false ;
@@ -210,9 +214,16 @@
 
     function populateAVD(){
         var sessionType = get("session-type").value;
-        if (sessionType == "A" || sessionType == "AV" || sessionType == "AVD" ) getAudio = true;
-        if (sessionType == "V" || sessionType == "AV" || sessionType == "VD"|| sessionType == "AVD" ) getVideo = true;
+        if (sessionType == "A" || sessionType == "AV" || sessionType == "AVD"  ){
+            getAudio = true;
+            receiveAudio = true;
+        }
+        if (sessionType == "V" || sessionType == "AV" || sessionType == "VD"|| sessionType == "AVD" ){
+            getVideo = true;
+        }
         if (sessionType == "D" || sessionType == "VD"|| sessionType == "AVD" ) getData = true;
+        if( sessionType == "BVS" ) getVideo = true ;
+        if( sessionType == "BVR" ) receiveVideo = true ;
     }
 
 </script>
@@ -401,6 +412,7 @@
         log("Info stored at application cache");
     }
 
+    
     // On Joining Channel
     get('joinChannel').onclick = function () {
         dataChannelOpened = false ;
