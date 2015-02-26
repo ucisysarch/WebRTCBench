@@ -9,21 +9,29 @@ se tasks are mapped one to one to three main Javascript APIs. These are as follo
 Because a MediaStream contains one or more media stream tracks (e.g., Webcam and Microphone), WebRTCBenc allows to define MediaStreams composed of Video, Audio, Data and any combination thereof. Likewise single peer connection with web server and multiple peer connections between browsers are supported in a WebRTC triangle [1].
 ### What Is Included ?
 This release is composed of two components:
-1.  a web server based on socket.io [2]
-+  a WebRTCBench application on peers side.
+1. a web server based on socket.io [2]
++  a HTML5 WebRTC application
 
-Webserver: Benchmark comes along with a Webserver which when run, allow clients to download the WebRTCBench application and to do the    signalling. Signaling trough STUN or TURN servers is currently not supported. Furthermore, it is used to integrate a database.
-WebRTCBench application: A WebRTC application that allows to acquire streams, open connections, and both streams and data sharing.do testing and performance measuring of different functionalists of WebRTC implementation across different browsers.
+#####Webserver:
+Benchmark comes with a Webserver which when run, allows clients to download the WebRTC application and perform the signaling. Furthermore, it is used to integrate a database.
 
 
-### WebRTCBench 0.2
-This version of WebRTCBench adds an automated mechanism to collect experiment information from peers' browsers within text format and also in rational database. Although benchmark supports having up to 10 peers connecting to each other in mesh form, collecting information is currently limited to connection between only two peers. Also, web server now provide a secure connection.
+#####WebRTCBench application:
+An HTML5 application that can acquire streams, open peer connections, and both streams and data sharing. It can  perform testing and performance measuring of important functionalists of WebRTC implementation including call establishment and media engine.
+
+
+### WebRTCBench 2
+This version of WebRTCBench adds performance measuring of media engine pipeline and data channels.
+
+### WebRTCBench 1
+This version of WebRTCBench provides WebRTC call performance measurement including capturing media devices, creating WebRTC objects, signaling and hole punchings. It has an automated mechanism to collect experiment information from peers' browsers within text format and also in rational database. Collecting information is currently limited to connection between only two peers. Also, web server can provide a secure connection.
+
+
 ## Getting started
 
-This section illustrates how to download WebRTCBench, install and execute the web server; and how to set up the database. Web server and database can be installed both on Linux and Windows based machines.
+This section illustrates how to install and execute the web server; how to set up the database and how to work with the benchmark. Web server and database can be installed both on Linux and Windows based machines.
 
 ### Setting Up and Starting the Web Server
-In the first step download and extract the benchmark.
 
 The web server is based on Node.js; After obtaining Node.js binary from http://nodejs.org/download/, enter into the directory webrtcbench-code and execute the following command.
 ```bash
@@ -58,7 +66,7 @@ By executing this command a database called "webrtcdb" --if does not already exi
 ```
 
 ### User Guide
-To use WebRTCBench, a user has to open multiple instances of a browser and navigate to the benchmark's hosted location. For example, if the benchmarks hosted location is core7.ics.uci.edu, open a browser and access the benchmark home page at the URL http://core7.ics.uci.edu.
+To use WebRTCBench, a user has to open multiple instances of a browser and navigate to the benchmark's hosted location. For example, if the benchmarks hosted location is host.example.com, open a browser and access the benchmark home page at the URL http://host.example.com.
 User should provide its own machine specification at "User Agent Info" section menu. These specification include: device type, processor, connection type. By pressing "Remember Information" button the provided specification will be stored in browser cache and will be restored in later uses. Once at the benchmark home page, a user can select any combination of audio, video, or data in the connection type box, choose a channel id or number to open, and then select "Open Channel". To add a peer connection, input the opened channel id or number into the channel name of a new browser; then input the connection type into the appropriate box. A connection of the selected type will then be opened between the two browsers.
 If an audio/video connection is selected, a prompt will appear to ask the user permission for accessing the corresponding devices; the user must allow access for the application to work properly. If the connection between browsers and web server is secure, browsers will remember user permission when accessing that website.
 Multiple audio and video connections can be created by navigating the home page and joining channels from different browsers. If a data connection is opened, any user can send a text message or send a file to other users by using the appropriate web forms.
@@ -120,6 +128,13 @@ A list of WebRTC events are defined in js/events.js file. WebRTC application wil
 
 ![WebRTC Call Flow](./flow.png)
 
+
+
+### MeidaEngine Stats
+Following picture depicts the components that are found in WebRTC media engine implementations. Our benchmarking application collectes exposed statistics regarding each component for video calls. For example frame rate, bit rate , video resolution output of both video encoder and decoder,  amount of data/packets being transfered over network are recorded.
+![WebRTC Media Engine Components](./media_engine.png)
+
+
 ### WebRTCBench Using HTTPS Connection
 When connected through HTTPS, media access permission granted to WebRTC application will be persistant for that particular web site (Firefox doesn't support persistant permission yet). Hence, the time measured to "Get user media" would exclude human interaction and would be more accurate. To enable web server to accept HTTPS connections, a certificate and key file should be provided. These files can be generated by tools such as OpenSSL. The following java script code shows how to create a node server with HTTPS support given certificate and key files.
 
@@ -165,7 +180,7 @@ File db.js provides the following function for database integration.
 + Inserts an experiment involving two peers from previous step (only if such experiment does not exist already).
 + sender and receiver timings table will be filled using data fields from sender and receiver objects accordingly.  
 
-### Adding Measurements
+### Adding measurements to database
 The following steps describe how to add another measurement to WebRTC benchmark:
 
 1. Add the new event to "EVENTS" variable in "events.js" file if does not already exists. Entries in "Events" have the following structure:
