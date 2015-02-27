@@ -1,12 +1,10 @@
 ## WebRTCBench
 
 ## Overview
-WebRTC is an industry and standards effort to provide real-time communication capabilities into all browsers and make these capabilities accessible to software developers via standard HTML5 and Javascript APIs [1].
-WebRTC fills a critical gap in web technologies by allowing (a) the browser to access native devices (e.g., microphone, webcam) through a Javascript API and (b) to share the captured streams through using browser-to-browser Real-Time Communication. WebRTC also provides data sharing.
-### WebRTCBench in a Nutshell
-The goal of WebRTCBench is to provide a quantitative comparison of WebRTC implementations across browsers and devices (i.e., hardware platforms). WebRTC accomplishes three main tasks: Acquiring audio and video; Communicating Audio and Video; Communicating Arbitrary Data. The
-se tasks are mapped one to one to three main Javascript APIs. These are as follows: MeadiaStream (i.e., getUserMedia); RTCPeerConnection; RTCDataChannel. Hence, a quantitative assessment of WebRTC implementations across browser and devices is performed via collecting performance of MediaStream, RTCPeerConnection, and RTCDataChannel.
-Because a MediaStream contains one or more media stream tracks (e.g., Webcam and Microphone), WebRTCBenc allows to define MediaStreams composed of Video, Audio, Data and any combination thereof. Likewise single peer connection with web server and multiple peer connections between browsers are supported in a WebRTC triangle [1].
+WebRTCBench is a WebRTC benchmark developed at the Parallel Architectures and Systems Lab at the University of California Irvine. It aims to provide a quantitative comparison of WebRTC implementations across browsers and devices.
+
+WebRTC accomplishes three main tasks: Acquiring audio and video; Communicating Audio and Video; Communicating Arbitrary Data through JavaScript APIs. This benchmark captures most of WebRTC functionalities and provides initialization and call establishment performance between two peers in a WebRTC triangle [1] and performance of data channels and media engine during call .
+
 ### What Is Included ?
 This release is composed of two components:
 1. a web server based on socket.io [2]
