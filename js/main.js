@@ -724,7 +724,6 @@ else if ( detectedBrowser == "Chrome"){
                                 PacketsReceivedPrev = packetsReceived;
 
 
-                                newStat.receiver.frameRate = DecodedFPS ;
                             } else if (res.type == 'ssrc' && res.stat('googFrameHeightSent')) {
                                 var codecName = res.stat('googCodecName');
                                 var frameHeightSent = res.stat('googFrameHeightSent');
@@ -1005,7 +1004,6 @@ function sendEventLogs(){
     if( videoStats ){
         //eventLogs["videoStats"] = statsArray ;
     }
-	var update = JSON.stringify(eventLogs);
 	signallingSocket.emit('events',update);
 }
 
@@ -1181,7 +1179,7 @@ function initConnection(caller) {
 
                             for( i = 0 ;i < collectionData.length ; ++i  ){
                                 cdata = collectionData[i];
-                                if( true ) {
+
                                     //Decoder
 
                                     decBitRateData.labels.push(parseInt(cdata.timer));
@@ -1195,8 +1193,6 @@ function initConnection(caller) {
 
 
 
-                                }
-
                             }
                             var ctx = document.getElementById("chartDecBitRate").getContext("2d");
                             var brChart = new Chart(ctx).Line(decBitRateData,{responsive:true, maintainAspectRatio: false, scaleShowLabels : true});
@@ -1204,6 +1200,8 @@ function initConnection(caller) {
                             var frChart = new Chart(ctx2).Line(decFrameRateData,{responsive:true, maintainAspectRatio: false, scaleShowLabels : true});
                             var ctx3 = document.getElementById("chartDecRes").getContext("2d");
                             var rChart = new Chart(ctx3).Line(decResData,{responsive:true, maintainAspectRatio: false, scaleShowLabels : true});
+
+                            log(JSON.stringify(decFrameRateData));
 
 
                             sendEventLogs();
@@ -1218,9 +1216,10 @@ function initConnection(caller) {
                             collectStats(true,collectionData);
                         else
                             collectStats(false,collectionData);
+                        --stepsRemained;
                     }
 
-                    --stepsRemained;
+
                 }, 1000);
             }
         };
@@ -1475,7 +1474,7 @@ function calleeSignalHandler(event) {
 // Get User Media
 function getMedia() {
     eventLogger.verbose(events.Events.GETTING_MEDIA, time());
-    var video_constraints = HD? {optional: [], mandatory: {minHeight: 720, minWidth: 1280}} : {optional: [], mandatory: { minFrameRate: 30, maxHeight: 480, maxWidth: 640,minHeight: 480, minWidth: 640}};
+    var video_constraints = HD? {optional: [], mandatory: {minHeight: 720, minWidth: 1280}} : VGA ? {optional: [], mandatory: { minFrameRate: 30, maxHeight: 480, maxWidth: 640,minHeight: 480, minWidth: 640}}: {optional: [], mandatory: { minFrameRate: 30, maxHeight: 240, maxWidth: 320}};
     getUserMedia(
         ( detectedBrowser == "Firefox"  ) ? //Constrainst are not supported by FF yet
         {
