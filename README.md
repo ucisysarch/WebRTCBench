@@ -1,7 +1,7 @@
 ## WebRTCBench
 
 ## Overview
-WebRTCBench is a WebRTC benchmark developed at the Parallel Architectures and Systems Lab at the University of California Irvine. It aims to provide a quantitative comparison of WebRTC implementations across browsers and devices.
+WebRTCBench is a WebRTC benchmark developed at [Parallel Architectures and Systems Lab](http://www.ics.uci.edu/~sysarch/) at the University of California Irvine. It aims to provide a quantitative comparison of WebRTC implementations across browsers and devices.
 
 WebRTC accomplishes three main tasks: Acquiring audio and video; Communicating Audio and Video; Communicating Arbitrary Data through JavaScript APIs. This benchmark captures most of WebRTC functionalities and provides initialization and call establishment performance between two peers in a WebRTC triangle [1] and performance of data channels and media engine during call .
 
