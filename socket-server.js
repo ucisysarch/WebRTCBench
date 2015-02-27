@@ -187,4 +187,7 @@ app.get('/css/style.css', function(req,res){
     res.sendfile(__dirname + '/css/style.css');
 });
 
+app.get('/js/chart.js', function(req,res){
+    res.sendfile(__dirname + '/js/chart.js');
+});
 
