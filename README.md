@@ -21,7 +21,7 @@ An HTML5 application that can acquire streams, open peer connections, and both s
 
 
 ### WebRTCBench 2
-This version of WebRTCBench adds performance measuring of media engine pipeline and data channels.
+This version of WebRTCBench adds performance measuring of media engine pipeline and data channels(only Chromium). Support for different video codecs VP8, VP9(Chromium), H264 (Firefox) and media constraints are also provided.
 
 ### WebRTCBench 1
 This version of WebRTCBench provides WebRTC call performance measurement including capturing media devices, creating WebRTC objects, signaling and hole punchings. It has an automated mechanism to collect experiment information from peers' browsers within text format and also in rational database. Collecting information is currently limited to connection between only two peers. Also, web server can provide a secure connection.
@@ -130,7 +130,7 @@ A list of WebRTC events are defined in js/events.js file. WebRTC application wil
 
 
 
-### MeidaEngine Stats
+### Media engine Stats
 Following picture depicts the components that are found in WebRTC media engine implementations. Our benchmarking application collectes exposed statistics regarding each component for video calls. For example frame rate, bit rate , video resolution output of both video encoder and decoder,  amount of data/packets being transfered over network are recorded.
 ![WebRTC Media Engine Components](./media_engine.png)
 
