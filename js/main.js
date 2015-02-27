@@ -1,12 +1,22 @@
 var dumpBlob ="";
-var WAITING_STEPS= 1;
-var COLLECTION_STEPS = 180 ;
+
+
+// Time before video measurements
+var WAITING_STEPS= 10;
+// Video measurement duration
+var COLLECTION_STEPS = 10 ;
+
+
+//Google
 var HD = false ;
+var VGA = true ;
+var QVGA = false ;
+
 var h264 = false ;
 var vp9 = false ;
 
 
-var googVidSize = "VGA" ; // QVGA, HD
+// Datachannel ordered transfer
 var dcOrdered = true;
 var mozFakeVideo = false ;
 // Dictionary that will contains experiment settings and WebRTC related events
@@ -20,6 +30,7 @@ var dataChannel;
 * This class collects events and store them into eventLogs dictionary
 */
 var sendBlob = new Blob;
+
 
 
 var eventLogger = {
@@ -94,7 +105,39 @@ function VideoStats()
     this.dropRate = 0 ;
     this.renderedFrames = 0 ;
     this.renderRate = 0 ; // Rendered in the last second
+    this.width = 0 ;
+    this.height = 0 ;
 }
+
+
+
+function Stat() {
+    // Sender
+    this.sender = {
+        bitRate: 0,  //Encoder
+        frameRate: 0,  //encoded
+        inputFrameRate: 0, //Captured
+        droppedFrames: 0,
+        bytesSent: 0,
+        googTargetEncoderBitRate: 0,
+        renderRate: 0,// Local render?
+        width: 0,
+        height: 0,
+        inputWidth:0 ,
+        inputHeight:0
+    };
+    // Receiver
+    this.receiver = {
+        bitRate: 0,
+        frameRate: 0,
+        bytesReceived: 0,
+        renderRate: 0, // Render rate
+        width: 0,
+        height: 0
+    }
+    ;
+}
+
 
 /*
  * Represents RTP stat (Mozilla)
@@ -304,86 +347,73 @@ if( detectedBrowser == "Firefox" ) {
             }
         }
     }
-
-
-
     function recalcRates() {
-
-
         var localVideoStats = new VideoStats();
         var remoteVideoStats = new VideoStats();
-
-
 
         var v = this.get("localView");
         if( v  ){
             if (v.readyState <= HTMLMediaElement.HAVE_CURRENT_DATA || v.paused) {
-                return {
-                    local:localVideoStats,
-                    remote:remoteVideoStats
-                };
+
+            } else {
+                decodedPerSec = (v.mozDecodedFrames - decodedFrames);
+                decodedFrames = v.mozDecodedFrames;
+
+                renderPerSec = v.mozPaintedFrames - renderFrames;
+                renderFrames = v.mozPaintedFrames;
+
+                droppedFramesPerSec = v.mozDecodedFrames - v.mozPresentedFrames - droppedFrames;
+                droppedFrames = v.mozDecodedFrames - v.mozPresentedFrames;
+
+
+                decodedMean.record(renderPerSec);
+                dropMean.record(droppedFramesPerSec);
+
+                if ((tempDecodedFrames - decodedFrames) != 0) {
+                    tempDecodedFrames = decodedFrames;
+                }
+
+                localVideoStats.decodedFrames = decodedFrames;
+                localVideoStats.decodeRate = decodedPerSec;
+                localVideoStats.renderedFrames = renderFrames;
+                localVideoStats.renderRate = renderPerSec;
+                localVideoStats.droppedFrames = droppedFrames;
+                localVideoStats.dropRate = droppedFramesPerSec;
+                localVideoStats.width = v.videoWidth ;
+                localVideoStats.height = v.videoHeight ;
             }
-            decodedPerSec = (v.mozDecodedFrames - decodedFrames);
-            decodedFrames = v.mozDecodedFrames;
-
-            renderPerSec = v.mozPaintedFrames - renderFrames;
-            renderFrames = v.mozPaintedFrames;
-
-            droppedFramesPerSec = v.mozDecodedFrames - v.mozPresentedFrames - droppedFrames;
-            droppedFrames = v.mozDecodedFrames - v.mozPresentedFrames ;
-
-
-            decodedMean.record(renderPerSec);
-            dropMean.record(droppedFramesPerSec);
-
-            if((tempDecodedFrames - decodedFrames) != 0){
-                tempDecodedFrames = decodedFrames;
-            }
-
-            localVideoStats.decodedFrames = decodedFrames ;
-            localVideoStats.decodeRate = decodedPerSec ;
-            localVideoStats.renderedFrames = renderFrames ;
-            localVideoStats.renderRate = renderPerSec ;
-            localVideoStats.droppedFrames = droppedFrames ;
-            localVideoStats.dropRate = droppedFramesPerSec ;
-
-
         }
-
-
         var vRmt = get("remoteView0");
-
         if( vRmt ) {
             if (vRmt.readyState <= HTMLMediaElement.HAVE_CURRENT_DATA || vRmt.paused) {
-                return {
-                    local: localVideoStats,
-                    remote: remoteVideoStats
-                };
+
+            } else {
+                RmtdecodedPerSec = (vRmt.mozDecodedFrames - RmtdecodedFrames);
+                RmtdecodedFrames = vRmt.mozDecodedFrames;
+
+                RmtrenderPerSec = vRmt.mozPaintedFrames - RmtrenderFrames;
+                RmtrenderFrames = vRmt.mozPaintedFrames;
+
+                RmtdroppedFramesPerSec = vRmt.mozDecodedFrames - vRmt.mozPresentedFrames - RmtdroppedFrames;
+                RmtdroppedFrames = vRmt.mozDecodedFrames - vRmt.mozPresentedFrames;
+
+
+                RmtdecodedMean.record(RmtrenderPerSec);
+                RmtdropMean.record(RmtdroppedFramesPerSec);
+
+                if ((RmtdecodedFrames - tempRmtDecodedFrames) != 0) {
+                    tempRmtDecodedFrames = RmtdecodedFrames;
+                }
+
+                remoteVideoStats.decodedFrames = RmtdecodedFrames;
+                remoteVideoStats.decodeRate = RmtdecodedPerSec;
+                remoteVideoStats.renderedFrames = RmtrenderFrames;
+                remoteVideoStats.renderRate = RmtrenderPerSec;
+                remoteVideoStats.droppedFrames = RmtdroppedFrames;
+                remoteVideoStats.dropRate = RmtdroppedFramesPerSec;
+                remoteVideoStats.width = vRmt.videoWidth ;
+                remoteVideoStats.height = vRmt.videoHeight ;
             }
-
-            RmtdecodedPerSec = (vRmt.mozDecodedFrames - RmtdecodedFrames);
-            RmtdecodedFrames = vRmt.mozDecodedFrames;
-
-            RmtrenderPerSec = vRmt.mozPaintedFrames - RmtrenderFrames;
-            RmtrenderFrames = vRmt.mozPaintedFrames;
-
-            RmtdroppedFramesPerSec = vRmt.mozDecodedFrames - vRmt.mozPresentedFrames - RmtdroppedFrames;
-            RmtdroppedFrames = vRmt.mozDecodedFrames - vRmt.mozPresentedFrames;
-
-
-            RmtdecodedMean.record(RmtrenderPerSec);
-            RmtdropMean.record(RmtdroppedFramesPerSec);
-
-            if ((RmtdecodedFrames - tempRmtDecodedFrames) != 0) {
-                tempRmtDecodedFrames = RmtdecodedFrames;
-            }
-
-            remoteVideoStats.decodedFrames = RmtdecodedFrames;
-            remoteVideoStats.decodeRate = RmtdecodedPerSec;
-            remoteVideoStats.renderedFrames = RmtrenderFrames;
-            remoteVideoStats.renderRate = RmtrenderPerSec;
-            remoteVideoStats.droppedFrames = RmtdroppedFrames;
-            remoteVideoStats.dropRate = RmtdroppedFramesPerSec;
         }
 
         return {
@@ -392,17 +422,30 @@ if( detectedBrowser == "Firefox" ) {
         };
 
     }
-    function collectStats(doReport){
-        if (peerConnection && ( peerConnection.getRemoteStreams()[0]  || peerConnection.getLocalStreams()[0]  ) ) {
+    function collectStats(doReport, retArr){
+
+            if (peerConnection && ( peerConnection.getRemoteStreams()[0]  || peerConnection.getLocalStreams()[0]  ) ) {
             if (peerConnection.getStats) {
                 peerConnection.getStats(null, function(stats) {
                     var mozStats = new MozStat;
+
+                    var newStat = new Stat();
+
                     var videoStats = recalcRates();
+
+                    newStat.sender.renderRate = videoStats.local.renderRate ;
+                    newStat.receiver.renderRate = videoStats.remote.renderRate ;
+
                     mozStats.videoStats = videoStats ;
 
                     var statsString = '';
                     var bitrateText = 'No bitrate stats';
                     var i = 0;
+
+                    newStat.sender.width = videoStats.local.width ;
+                    newStat.sender.height = videoStats.local.height ;
+                    newStat.receiver.width = videoStats.remote.width ;
+                    newStat.receiver.height = videoStats.remote.height ;
 
                     stats.forEach(function(res) {
                         statsString += '<h3>Report ';
@@ -425,14 +468,24 @@ if( detectedBrowser == "Firefox" ) {
                             {
 
                                 mozStats.decoderStats.bitRateMean = res.bitrateMean ;
+                                newStat.receiver.bitRate = res.bitrateMean;
+
+
                                 mozStats.decoderStats.bitRateSTDDev = res.bitratStdDev ;
                                 mozStats.decoderStats.frameRateMean = res.framerateMean;
+
+                                newStat.receiver.frameRate = res.framerateMean ;
+
                                 mozStats.decoderStats.frameRateSTDDev = res.framerateStdDev;
 
                                 mozStats.decoderStats.bytesReceived = res.bytesReceived -  bytesReceived ;
                                 bytesReceived = res.bytesReceived;
 
+                                newStat.receiver.bytesReceived = mozStats.decoderStats.bytesReceived ;
+
                                 mozStats.videoInputJitter = res.jitter;
+
+
 
                             }
 
@@ -447,6 +500,12 @@ if( detectedBrowser == "Firefox" ) {
                                 mozStats.encoderStats.droppedFrames = res.droppedFrames ;
                                 mozStats.encoderStats.bytesSent = res.bytesSent - bytesSent;
                                 bytesSent = res.bytesSent;
+
+
+                                newStat.sender.bitRate = res.bitrateMean ;
+                                newStat.sender.frameRate = res.framerateMean ;
+                                newStat.sender.bytesSent = mozStats.encoderStats.bytesSent ;
+
                             }
                             if ( res.mediaType === "audio"){
 
@@ -464,13 +523,13 @@ if( detectedBrowser == "Firefox" ) {
                        //    ,"l.render ", videoStats.local.renderRate , "r.render " , videoStats.remote.renderRate
                        // ];
 
-
-
+                        newStat.timer = timer ;
                         var result = [ timer ,  " VInpJit" , mozStats.videoInputJitter,  " Decode brm,frm " ,  mozStats.decoderStats.bitRateMean , mozStats.decoderStats.frameRateMean
                             , "Encode: br,fr,df " , mozStats.encoderStats.bitRateMean, mozStats.encoderStats.frameRateMean,
                             mozStats.encoderStats.droppedFrames
                             ,"l.render ", videoStats.local.renderRate , "r.render " , videoStats.remote.renderRate
                         ];
+                        retArr.push( newStat );
 
                         oldebrmean = mozStats.encoderStats.bitRateMean ;
                         olddbrmean = mozStats.decoderStats.bitRateMean ;
@@ -493,6 +552,7 @@ if( detectedBrowser == "Firefox" ) {
             //display("No stream");
             //log('Not connected yet');
         }
+
     }
 }
 else if ( detectedBrowser == "Chrome"){
@@ -506,6 +566,7 @@ else if ( detectedBrowser == "Chrome"){
             if (peerConnection.getStats) {
                 peerConnection.getStats(function(stats) {
                     var results = stats.result();
+
                     for (var i = 0; i < results.length; ++i) {
                         var res = results[i];
                         if (res.type == 'googCandidatePair' && res.stat('googActiveConnection') == 'true'  ){
@@ -538,33 +599,32 @@ else if ( detectedBrowser == "Chrome"){
 
 
         if (v ) {
-            if( v.readyState <= HTMLMediaElement.HAVE_CURRENT_DATA || v.paused ) {
-                return {
-                    local: localVideoStats,
-                    remote: remoteVideoStats
-                };
+            if( v.readyState > HTMLMediaElement.HAVE_CURRENT_DATA && ! v.paused ) {
+                decodedPerSec = (v.webkitDecodedFrameCount - decodedFrames);
+                decodedFrames = v.webkitDecodedFrameCount;
+                droppedFramesPerSec = v.webkitDroppedFrameCount - droppedFrames;
+                droppedFrames = v.webkitDroppedFrameCount;
+
+                renderFrames = decodedFrames - droppedFrames;
+                renderPerSec = decodedPerSec - droppedFramesPerSec;
+
+                decodedMean.record(renderPerSec);
+                dropMean.record(droppedFramesPerSec);
+
+                if ((tempDecodedFrames - decodedFrames) != 0) {
+                    tempDecodedFrames = decodedFrames;
+                }
+                localVideoStats.decodedFrames = decodedFrames;
+                localVideoStats.decodeRate = decodedPerSec;
+                localVideoStats.renderedFrames = renderFrames;
+                localVideoStats.renderRate = renderPerSec;
+                localVideoStats.droppedFrames = droppedFrames;
+                localVideoStats.dropRate = droppedFramesPerSec;
+                localVideoStats.width = v.videoWidth ;
+                localVideoStats.height = v.videoHeight ;
             }
 
-            decodedPerSec = (v.webkitDecodedFrameCount - decodedFrames);
-            decodedFrames = v.webkitDecodedFrameCount;
-            droppedFramesPerSec = v.webkitDroppedFrameCount - droppedFrames;
-            droppedFrames = v.webkitDroppedFrameCount;
 
-            renderFrames = decodedFrames - droppedFrames;
-            renderPerSec = decodedPerSec - droppedFramesPerSec;
-
-            decodedMean.record(renderPerSec);
-            dropMean.record(droppedFramesPerSec);
-
-            if ((tempDecodedFrames - decodedFrames) != 0) {
-                tempDecodedFrames = decodedFrames;
-            }
-            localVideoStats.decodedFrames = decodedFrames;
-            localVideoStats.decodeRate = decodedPerSec;
-            localVideoStats.renderedFrames = renderFrames;
-            localVideoStats.renderRate = renderPerSec;
-            localVideoStats.droppedFrames = droppedFrames;
-            localVideoStats.dropRate = droppedFramesPerSec;
         }
         var vRmt = get("remoteView0");
          if( vRmt ) {
@@ -595,6 +655,8 @@ else if ( detectedBrowser == "Chrome"){
             remoteVideoStats.renderRate = RmtrenderPerSec;
             remoteVideoStats.droppedFrames = RmtdroppedFrames;
             remoteVideoStats.dropRate = RmtdroppedFramesPerSec;
+            remoteVideoStats.width = vRmt.videoWidth ;
+            remoteVideoStats.height = vRmt.videoHeight ;
 
 
             if ((RmtdecodedFrames - tempRmtDecodedFrames) != 0) {
@@ -607,19 +669,26 @@ else if ( detectedBrowser == "Chrome"){
         }
     }
     // Statistics
-    function collectStats(doReport)
+    function collectStats(doReport,retArr)
     {
-        if (peerConnection ) { //TODO } && peerConnection.getRemoteStreams()[0]) {
+        if (peerConnection && ( peerConnection.getRemoteStreams()[0]  || peerConnection.getLocalStreams()[0]   ) ) {
             chromeStats = new ChromeStats();
             if (peerConnection.getStats) {
                 peerConnection.getStats(function(stats) {
 
-
+                    var newStat = new Stat();
                     var videoStats = recalcRates();
                     chromeStats.videoStats = videoStats ;
                     var statsString = '';
                     var results = stats.result();
                     var bitrateText = 'No bitrate stats';
+                    newStat.sender.width = videoStats.local.width ;
+                    newStat.sender.height = videoStats.local.height ;
+                    newStat.receiver.width = videoStats.remote.width ;
+                    newStat.receiver.height = videoStats.remote.height ;
+
+
+
                     for (var i = 0; i < results.length; ++i) {
                         var res = results[i];
                         statsString += '<h3>Item ';
@@ -629,8 +698,10 @@ else if ( detectedBrowser == "Chrome"){
                             statsString += dumpStats(res);
                             if (res.type == 'ssrc' && res.stat('googFrameHeightReceived')) {
                                 var receiverFPS = res.stat('googFrameRateReceived');
+
                                 chromeStats.recieveFrameRate = receiverFPS ;
                                 var DecodedFPS = res.stat('googFrameRateDecoded');
+                                newStat.receiver.frameRate = DecodedFPS ;
                                 chromeStats.decodeFramRate = DecodedFPS ;
                                 d2 = DecodedFPS ;
                                 var packetsReceived = res.stat('packetsReceived');
@@ -642,6 +713,7 @@ else if ( detectedBrowser == "Chrome"){
                                     var bitRate = Math.round((bytesNow - bytesPrev) * 8 /
                                         (res.timestamp - timestampPrev));
                                     chromeStats.bitRate = bitRate ;
+                                    newStat.receiver.bitRate = bitRate ;
                                     bitrateText = bitRate + ' kbits/sec';
                                     var PacketsReceivedPerSec = Math.round((packetsReceived - PacketsReceivedPrev) * 1000 /
                                         (res.timestamp - timestampPrev));
@@ -650,10 +722,16 @@ else if ( detectedBrowser == "Chrome"){
                                 timestampPrev = res.timestamp;
                                 bytesPrev = bytesNow;
                                 PacketsReceivedPrev = packetsReceived;
+
+
+                                newStat.receiver.frameRate = DecodedFPS ;
                             } else if (res.type == 'ssrc' && res.stat('googFrameHeightSent')) {
                                 var codecName = res.stat('googCodecName');
                                 var frameHeightSent = res.stat('googFrameHeightSent');
                                 chromeStats.sendFrameSize.height = frameHeightSent ;
+
+
+
                                 var frameWidthSent = res.stat('googFrameWidthSent');
                                 chromeStats.sendFrameSize.width = frameWidthSent ;
                                 var captureFPS = res.stat('googFrameRateInput');
@@ -675,11 +753,25 @@ else if ( detectedBrowser == "Chrome"){
                                 SenttimestampPrev = res.timestamp;
                                 SentbytesPrev = bytesSent;
                                 PacketsSentPrev = packetsSent;
+
+
+                                newStat.sender.height = frameHeightSent ;
+                                newStat.sender.width = frameWidthSent ;
+                                newStat.sender.bytesSent = chromeStats.sendBitRate * 8 ;
+                                newStat.sender.frameRate = senderFPS;
+                                newStat.sender.inputFrameRate = captureFPS ;
+                                newStat.sender.inputHeight = res.stat('googFrameHeightInput');
+                                newStat.sender.inputWidth = res.stat('googFrameWidthInput');
                             } else if (res.type == 'VideoBwe') {
                                 var ActualEncBitrate = res.stat('googActualEncBitrate');
                                 var TargetEncBitrate = res.stat('googTargetEncBitrate');
                                 chromeStats.actualEncodingBitRate = ActualEncBitrate ;
                                 chromeStats.targetEncodingBitRate = TargetEncBitrate ;
+
+                                newStat.sender.googTargetEncoderBitRate = TargetEncBitrate;
+                                newStat.sender.bitRate = ActualEncBitrate ;
+
+
 
 
                                 var AvailableSendBandwidth = res.stat('googAvailableSendBandwidth');
@@ -724,12 +816,15 @@ else if ( detectedBrowser == "Chrome"){
 //Capturer/Sender/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketLoss/Txbitrate/RxBitrate/SenderBandwidth/ReceiverBandwidth
 
                     timer = timer + 1 ;
+                    chromeStats.timer = timer ;
+                    newStat.timer = timer ;
                     if( doReport )
                     {
                         var result = [timer, chromeStats.sendFrameSize.width + "*" + chromeStats.sendFrameSize.height , chromeStats.captureFrameRate  , chromeStats.sendFrameRate , chromeStats.videoStats.local.renderRate , chromeStats.videoStats.local.dropRate, chromeStats.recieveFrameRate  , chromeStats.decodeFramRate , chromeStats.videoStats.remote.renderRate , chromeStats.videoStats.remote.dropRate , chromeStats.targetEncodingBitRate  , chromeStats.actualEncodingBitRate , chromeStats.packetSendRate  , chromeStats.packetReceiveRate , chromeStats.packetsLost , chromeStats.sendBitRate, chromeStats.bitRate ,chromeStats.availableSentBandwidth  , chromeStats.availableReceiveBandwidth , chromeStats.transmitBitrate ];
+                        retArr.push( newStat );
                         log(result.join(","));
                         dumpBlob += result.join("\0") + "\n";
-                        statsArray.push(chromeStats);
+                        //statsArray.push(chromeStats);
 
                     }
 
@@ -908,7 +1003,7 @@ function sendEventLogs(){
 	eventLogs["timestamp"]= window.get("timestamp").value;
 	eventLogs["session-type"]= window.get("session-type").value;
     if( videoStats ){
-        eventLogs["videoStats"] = statsArray ;
+        //eventLogs["videoStats"] = statsArray ;
     }
 	var update = JSON.stringify(eventLogs);
 	signallingSocket.emit('events',update);
@@ -941,14 +1036,19 @@ function initConnection(caller) {
     userName.style.display = "none";
     eventLogger.verbose(events.Events.CREATING_PC, time());
     // create the WebRTC peer connection object
+
+    options = undefined; // For interoperability between Chrome and FF32+
+    options  = {
+        mandatory: { googIPv6: true }
+    };
     var options = {
         "optional": [
             {DtlsSrtpKeyAgreement: true}//,
             //{RtpDataChannels: getData}
-        ]
+        ],
+        mandatory: { googIPv6: true }
     };
-    options = undefined; // For interoperability between Chrome and FF32+
-    peerConnection = new RTCPeerConnection(null,null);//server, options);
+    peerConnection = new RTCPeerConnection(null,options);//server, options);
     eventLogger.verbose(events.Events.PC_CREATED, time());
     peerConnection.oniceconnectionstatechange = function (ice_state) {
         log( peerConnection.iceGatheringState + " " + peerConnection.iceConnectionState );
@@ -979,10 +1079,6 @@ function initConnection(caller) {
             remoteStreamArrived = true;
             var media = document.createElement(receiveAudio && !receiveVideo ? 'audio' : 'video');
             media.id = "remoteView0";
-            if( receiveVideo ){
-                //media.setAttribute("width", "320");
-                //media.setAttribute("height", "240");
-            }
             var status = document.createElement('div');
             status.id = "rmtStatus";
 
@@ -1018,6 +1114,55 @@ function initConnection(caller) {
 
 
             if( videoStats ) {
+                var decBitRateData = {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: "Decoder Bitrate",
+                            fillColor: "rgba(220,220,220,0.2)",
+                            strokeColor: "rgba(220,220,220,1)",
+                            pointColor: "rgba(220,220,220,1)",
+                            pointStrokeColor: "#fff",
+                            pointHighlightFill: "#fff",
+                            pointHighlightStroke: "rgba(220,220,220,1)",
+                            data: []
+                        }
+                    ]
+                };
+
+                var decFrameRateData = {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: "Decoder FPS",
+                            fillColor: "rgba(220,220,220,0.2)",
+                            strokeColor: "rgba(220,220,220,1)",
+                            pointColor: "rgba(220,220,220,1)",
+                            pointStrokeColor: "#fff",
+                            pointHighlightFill: "#fff",
+                            pointHighlightStroke: "rgba(220,220,220,1)",
+                            data: []
+                        }
+                    ]
+                };
+
+                var decResData = {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: "Decoded Video Resolution",
+                            fillColor: "rgba(220,220,220,0.2)",
+                            strokeColor: "rgba(220,220,220,1)",
+                            pointColor: "rgba(220,220,220,1)",
+                            pointStrokeColor: "#fff",
+                            pointHighlightFill: "#fff",
+                            pointHighlightStroke: "rgba(220,220,220,1)",
+                            data: []
+                        }
+                    ]
+                };
+
+                var  collectionData = [ ] ;
                 var stepsRemained = WAITING_STEPS;
                 var statCollector = setInterval(function () {
 
@@ -1027,11 +1172,40 @@ function initConnection(caller) {
                         if (stepsRemained === 0) {
                             if( detectedBrowser == "Chrome")
                                 log("Capturer/Sender/LocalRender/LocalRenderDropped/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate/AvbSent/AvbReceived/TransmitBitrate");
-                            else if ( detectedBrowser == "Firefox")
-                                log("PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate");
+                            //else if ( detectedBrowser == "Firefox")
+                            //    log("PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate");
                         } else if (stepsRemained == -1 * COLLECTION_STEPS) {
                             get("rmtStatus").innerHTML = remoteVideo.videoWidth + "x" + remoteVideo.videoHeight + "<br>" +
                                 "Stats finished ";
+
+
+                            for( i = 0 ;i < collectionData.length ; ++i  ){
+                                cdata = collectionData[i];
+                                if( true ) {
+                                    //Decoder
+
+                                    decBitRateData.labels.push(parseInt(cdata.timer));
+                                    decBitRateData.datasets[0].data.push(cdata.receiver.bitRate);
+
+                                    decFrameRateData.labels.push(parseInt(cdata.timer));
+                                    decFrameRateData.datasets[0].data.push(cdata.receiver.frameRate);
+
+                                    decResData.labels.push(parseInt(cdata.timer  ));
+                                    decResData.datasets[0].data.push(cdata.receiver.height* cdata.receiver.width);
+
+
+
+                                }
+
+                            }
+                            var ctx = document.getElementById("chartDecBitRate").getContext("2d");
+                            var brChart = new Chart(ctx).Line(decBitRateData,{responsive:true, maintainAspectRatio: false, scaleShowLabels : true});
+                            var ctx2 = document.getElementById("chartDecFPS").getContext("2d");
+                            var frChart = new Chart(ctx2).Line(decFrameRateData,{responsive:true, maintainAspectRatio: false, scaleShowLabels : true});
+                            var ctx3 = document.getElementById("chartDecRes").getContext("2d");
+                            var rChart = new Chart(ctx3).Line(decResData,{responsive:true, maintainAspectRatio: false, scaleShowLabels : true});
+
+
                             sendEventLogs();
                         }
                         else if (stepsRemained < 0) {
@@ -1041,9 +1215,9 @@ function initConnection(caller) {
                                 "Stats begin in " + stepsRemained + " seconds";
                         }
                         if (stepsRemained <= 0 && stepsRemained > -1*COLLECTION_STEPS)
-                            collectStats(true);
+                            collectStats(true,collectionData);
                         else
-                            collectStats(false);
+                            collectStats(false,collectionData);
                     }
 
                     --stepsRemained;
@@ -1083,20 +1257,34 @@ function initConnection(caller) {
             }
             else
             {
-               if( blob.toString() == "ping"){
-                   dataChannel.send("pong");
+               if( blob.toString().indexOf("ping") >= 0 ){
+                   dataChannel.send("pong " + time() );
                    //log("ping received at " + t_msg.toString() ) ;
                }
-               else if( blob.toString() == "pong"){
-                    log("pong received at " + t_msg.toString() ) ;
-               } else {
-                   log("text received at " + t_msg.toString() ) ;
-                   appendDIV(event.data);
-               }
+               else if( blob.toString().indexOf("pong") >= 0 ){
+                log(blob.toString() + " received at " + t_msg.toString() ) ;
+
+            } else {
+                log("text received at " + t_msg.toString() ) ;
+                appendDIV(event.data);
+            }
 
             }
         };
+        var dcOpened = function() {
+            eventLogger.info(events.Events.DATA_CHANNEL_OPENED, time());
+            get('chat-input').disabled = false;
+            dataChannelOpened = true;
+            if (sendEvents && !videoStats && (  (!getAudio && !getVideo) || remoteStreamArrived )) {
+                sendEventLogs();
+            }
+            var sendButton = get('sendbtn');
+            sendButton.onclick =  function(){
+                log("Started Sending file at " + time().toString() );
+                dataChannel.send(sendBlob);
+            };
 
+        };
         if (caller) {
             var dataChannelOptions = dcOrdered ? {
                 ordered: true
@@ -1110,19 +1298,7 @@ function initConnection(caller) {
                 log("Data Channel Error:" + error);
             };
             dataChannel.onmessage = onMessage;
-            dataChannel.onopen = function () {
-                eventLogger.verbose(events.Events.DATA_CHANNEL_OPENED, time());
-                get('chat-input').disabled = false;
-                dataChannelOpened = true;
-                if (sendEvents && ! videoStats && ( (!getAudio && !getVideo) || (remoteStreamArrived) ) ) {
-                    sendEventLogs();
-                }
-                var sendButton = get('sendbtn');
-                sendButton.onclick =  function(){
-                    log("Started Sending file at " + time().toString() );
-                    dataChannel.send(sendBlob);
-                };
-            };
+            dataChannel.onopen = dcOpened;
             dataChannel.onclose = function () {
                 log("The Data Channel is closed");
             };
@@ -1136,19 +1312,7 @@ function initConnection(caller) {
                     log("Data Channel Error:", error);
                 };
                 dataChannel.onmessage = onMessage;
-                dataChannel.onopen = function () {
-                    eventLogger.info(events.Events.DATA_CHANNEL_OPENED, time());
-                    get('chat-input').disabled = false;
-                    dataChannelOpened = true;
-                    if (sendEvents && !videoStats && (  (!getAudio && !getVideo) || remoteStreamArrived )) {
-                        sendEventLogs();
-                    }
-                    var sendButton = get('sendbtn');
-                    sendButton.onclick =  function(){
-                        log("Started Sending file at " + time().toString() );
-                        dataChannel.send(sendBlob);
-                    };
-                };
+                dataChannel.onopen = dcOpened;
                 dataChannel.onclose = function () {
                     log("The Data Channel is closed");
                 };
@@ -1313,15 +1477,15 @@ function getMedia() {
     eventLogger.verbose(events.Events.GETTING_MEDIA, time());
     var video_constraints = HD? {optional: [], mandatory: {minHeight: 720, minWidth: 1280}} : {optional: [], mandatory: { minFrameRate: 30, maxHeight: 480, maxWidth: 640,minHeight: 480, minWidth: 640}};
     getUserMedia(
-        ( detectedBrowser == "Firefox" && mozFakeVideo ) ?
+        ( detectedBrowser == "Firefox"  ) ? //Constrainst are not supported by FF yet
+        {
+            audio: getAudio ? true : false,
+            video: getVideo ? true : false,
+            fake: mozFakeVideo
+        } :
         {
             audio: getAudio? true : false,
-            video: getVideo  ? true : false,
-            fake:true}
-            :
-        {
-            audio: getAudio? true : false,
-            video: getVideo ? true : false
+            video: getVideo ? video_constraints : false
 }
               , streaming, function (e) {
             console.error(e);
@@ -1349,24 +1513,25 @@ function getMedia() {
         var status = document.createElement('div');
         status.id = "localStatus";
 
-        localMedia.addEventListener('play', function () {
-            log("onplay @" + time() );
-        }, false);
+
+      //  localMedia.addEventListener('play', function () {
+      //      log("onplay @" + time() );
+      //  }, false);
 
 
-        localMedia.addEventListener('play', function () {
-            log("onplaying @" + time() );
-        }, false);
+      //  localMedia.addEventListener('play', function () {
+      ///      log("onplaying @" + time() );
+     //   }, false);
 
 
-        localMedia.addEventListener('canplay', function () {
-            log("oncanplay @" + time() );
-        }, false);
+      //  localMedia.addEventListener('canplay', function () {
+      //      log("oncanplay @" + time() );
+      //  }, false);
 
 
-        localMedia.addEventListener('canplaythrough', function () {
-            log("canplaythrough @" + time() );
-        }, false);
+     //   localMedia.addEventListener('canplaythrough', function () {
+     //       log("canplaythrough @" + time() );
+     //   }, false);
 
 
 
@@ -1374,34 +1539,161 @@ function getMedia() {
 
         localMedia.play();
         peerConnection.addStream(stream);
-        if (receiveVideo == false) {
-            var stepsRemained = WAITING_STEPS;
-            var statCollector = setInterval(function () {
 
 
-                if (stepsRemained === 0) {
-                    if (detectedBrowser == "Chrome")
-                        log("Capturer/Sender/LocalRender/LocalRenderDropped/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate/AvbSent/AvbReceived/TransmitBitrate");
-                    else if (detectedBrowser == "Firefox")
-                        log("PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate");
-                } else if (stepsRemained == -1 * COLLECTION_STEPS) {
-                    get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight + "<br>" +
-                        "Stats finished ";
-                    sendEventLogs();
-                }
-                else if (stepsRemained < 0) {
-                    get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight;
-                } else {
-                    get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight + "<br>" +
-                        "Stats begin in " + stepsRemained + " seconds";
-                }
-                if (stepsRemained <= 0 && stepsRemained > -1 * COLLECTION_STEPS)
-                    collectStats(true);
-                else
-                    collectStats(false);
+        // SENDER STATS
+        if( videoStats ) {
+            if (receiveVideo == false) {
+                var collectionData = [];
+                var stepsRemained = WAITING_STEPS;
 
-                --stepsRemained;
-            }, 1000);
+                var encBitRateData = {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: "Encoder Bitrate",
+                            fillColor: "rgba(220,220,220,0.2)",
+                            strokeColor: "rgba(220,220,220,1)",
+                            pointColor: "rgba(220,220,220,1)",
+                            pointStrokeColor: "#fff",
+                            pointHighlightFill: "#fff",
+                            pointHighlightStroke: "rgba(220,220,220,1)",
+                            data: []
+                        },
+                        {
+                            label: "Encoder Bitrate Target",
+                            fillColor: "rgba(220,220,220,0.2)",
+                            strokeColor: "rgba(220,220,220,1)",
+                            pointColor: "rgba(220,220,220,1)",
+                            pointStrokeColor: "#fff",
+                            pointHighlightFill: "#fff",
+                            pointHighlightStroke: "rgba(220,220,220,1)",
+                            data: []
+                        }
+                    ]
+                };
+
+                var encFrameRateData = {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: "Capture FPS",
+                            fillColor: "rgba(120,120,120,0.2)",
+                            strokeColor: "rgba(100,120,120,1)",
+                            pointColor: "rgba(120,120,120,1)",
+                            pointStrokeColor: "#fff",
+                            pointHighlightFill: "#fff",
+                            pointHighlightStroke: "rgba(120,120,120,1)",
+                            data: []
+                        } ,
+                        {
+                            label: "Encoder FPS",
+                            fillColor: "rgba(220,220,220,0.2)",
+                            strokeColor: "rgba(220,220,220,1)",
+                            pointColor: "rgba(220,220,220,1)",
+                            pointStrokeColor: "#fff",
+                            pointHighlightFill: "#fff",
+                            pointHighlightStroke: "rgba(220,220,220,1)",
+                            data: []
+                        }
+                    ]
+                };
+
+
+
+                var encResoloutionData = {
+                    labels: [],
+                    datasets: [
+                        {
+                            label: "Capture Res",
+                            fillColor: "rgba(120,120,120,0.2)",
+                            strokeColor: "rgba(100,120,120,1)",
+                            pointColor: "rgba(120,120,120,1)",
+                            pointStrokeColor: "#fff",
+                            pointHighlightFill: "#fff",
+                            pointHighlightStroke: "rgba(120,120,120,1)",
+                            data: []
+                        } ,
+                        {
+                            label: "Encoder Res",
+                            fillColor: "rgba(220,220,220,0.2)",
+                            strokeColor: "rgba(220,220,220,1)",
+                            pointColor: "rgba(220,220,220,1)",
+                            pointStrokeColor: "#fff",
+                            pointHighlightFill: "#fff",
+                            pointHighlightStroke: "rgba(220,220,220,1)",
+                            data: []
+                        }
+                    ]
+                };
+
+                var statCollector = setInterval(function () {
+                    if (stepsRemained === 0) {
+                        if (detectedBrowser == "Chrome")
+                            log("Capturer/Sender/LocalRender/LocalRenderDropped/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate/AvbSent/AvbReceived/TransmitBitrate");
+                        //else if (detectedBrowser == "Firefox")
+                       //     log("PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate");
+                    } else if (stepsRemained == -1 * COLLECTION_STEPS) {
+                        get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight + "<br>" +
+                            "Stats finished ";
+                        // Prepare the charts
+                        for (i = 0; i < collectionData.length; ++i) {
+                            cdata = collectionData[i];
+                            if ( true ) {
+                                if( detectedBrowser == "Chrome"){
+                                    encBitRateData.labels.push(parseInt(cdata.timer));
+                                    encBitRateData.datasets[0].data.push(cdata.sender.bitRate);
+                                    encBitRateData.datasets[1].data.push(cdata.sender.googTargetEncoderBitRate);
+
+
+                                    encResoloutionData.labels.push(cdata.timer);
+                                    encResoloutionData.datasets[0].data.push(cdata.sender.inputWidth * cdata.sender.inputHeight);
+                                    encResoloutionData.datasets[1].data.push(cdata.sender.width * cdata.sender.height);
+
+
+                                    encFrameRateData.labels.push(parseInt(cdata.timer));
+                                    encFrameRateData.datasets[0].data.push(cdata.sender.inputFrameRate);
+                                    encFrameRateData.datasets[1].data.push(cdata.sender.frameRate);
+                                } else {
+                                    encBitRateData.labels.push(parseInt(cdata.timer));
+                                    encBitRateData.datasets[0].data.push(cdata.sender.bitRate);
+
+                                    encResoloutionData.labels.push(cdata.timer);
+                                    encResoloutionData.datasets[0].data.push(localMedia.videoWidth * localMedia.videoHeight );
+
+                                    encFrameRateData.labels.push(parseInt(cdata.timer));
+                                    encFrameRateData.datasets[0].data.push(cdata.sender.frameRate);
+                                }
+
+                            }
+
+                        }
+                        var ctx = document.getElementById("chartEncBitRate").getContext("2d");
+                        var myNewChart = new Chart(ctx).Line(encBitRateData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+                        var ctx2 = document.getElementById("chartEncFPS").getContext("2d");
+                        var myNewChart2 = new Chart(ctx2).Line(encFrameRateData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+                        var ctx3 = document.getElementById("chartEncRes").getContext("2d");
+                        var myNewChart3 = new Chart(ctx3).Line(encResoloutionData,{responsive:true, maintainAspectRatio: false, scaleShowLabels : true});
+
+                        sendEventLogs();
+                    }
+                    else if (stepsRemained < 0) {
+                        get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight;
+                    } else {
+                        get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight + "<br>" +
+                            "Stats begin in " + stepsRemained + " seconds";
+                    }
+
+                    if (stepsRemained <= 0 && stepsRemained > -1 * COLLECTION_STEPS) {
+                        collectStats(true, collectionData);
+                    }
+                    else
+                        collectStats(false, collectionData);
+
+
+                    --stepsRemained;
+                }, 1000);
+            }
         }
         window.get("local-streams").appendChild(localMedia);
         window.get("local-streams").appendChild(status);
@@ -1409,4 +1701,8 @@ function getMedia() {
 }
 
 
+
+
+
+//legend(document.getElementById('bitRateLegend'), data);
 

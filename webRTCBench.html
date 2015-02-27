@@ -42,6 +42,7 @@
             <option value="AVD"> Video+Audio+Data </option>
             <option value="BVS"> Broadcast Send (V)  </option>
             <option value="BVR"> Broadcast Receive (V) </option>
+            <option value="TS"> Time Offest Calc </option>
         </select>
         <br>
         <input type="text" id="channel" value="channel">
@@ -149,13 +150,52 @@
 
 </div>
 
+
+<div>
+    Encoder BitRate
+    <canvas id="chartEncBitRate" width="400" height="200"></canvas>
+</div>
+
+<div>
+    Encoder Frame rate
+    <canvas id="chartEncFPS" width="400" height="200"></canvas>
+
+</div>
+
+<div>
+    Encodedd Video Resolution (pixels)
+    <canvas id="chartEncRes" width="400" height="200"></canvas>
+
+</div>
+
+
+<div>
+    Decoder BitRate
+    <canvas id="chartDecBitRate" width="400" height="200"></canvas>
+</div>
+
+<div>
+    Decoder Frame rate
+    <canvas id="chartDecFPS" width="400" height="200"></canvas>
+
+</div>
+
+<div>
+    Decoded Video Resolution (pixels)
+    <canvas id="chartDecRes" width="400" height="200"></canvas>
+
+</div>
+
+
+
 <script src="js/events.js"> </script>
+<script src="js/chart.js"></script>
 <script>
     var channel ;
     var caller, callee;
     var getAudio = false,
             getVideo = false,
-            getData = false;
+            getData = true; // for time synchronization
     var receiveVideo = false,
             receiveAudio = false;
     var isCaller = false;
@@ -221,7 +261,7 @@
         if (sessionType == "V" || sessionType == "AV" || sessionType == "VD"|| sessionType == "AVD" ){
             getVideo = true;
         }
-        if (sessionType == "D" || sessionType == "VD"|| sessionType == "AVD" ) getData = true;
+        if (sessionType == "D" || sessionType == "VD"|| sessionType == "AVD" || sessionType == "TS") getData = true;
         if( sessionType == "BVS" ) getVideo = true ;
         if( sessionType == "BVR" ) receiveVideo = true ;
     }
@@ -283,36 +323,35 @@
 
     get('h264Button').onclick = function (){
         var item = get('h264Button');
-        if(item.className == "constraintsOn") {
-            item.className="constraintsOff";
-            h264 = false ;
-        } else {
+        if(item.className == "constraintsOff") {
             item.className="constraintsOn";
             h264 = true ;
             vp9 = false ;
+            get('vp8Button').className = "constraintsOff" ;
+            get('vp9Button').className = "constraintsOff" ;
         }
     };
 
     get('vp8Button').onclick = function (){
         var item = get('vp8Button');
-        if(item.className == "constraintsOn") {
-            item.className="constraintsOff";
-        } else {
+        if(item.className == "constraintsOff") {
             item.className="constraintsOn";
             h264 = false ;
             vp9 = false ;
+            get('h264Button').className = "constraintsOff" ;
+            get('vp9Button').className = "constraintsOff" ;
         }
     };
 
     get('vp9Button').onclick = function (){
         var item = get('vp9Button');
-        if(item.className == "constraintsOn") {
-            item.className="constraintsOff";
-            vp9 = false ;
-        } else {
+        if(item.className == "constraintsOff") {
             item.className="constraintsOn";
+
             h264 = false ;
             vp9 = true ;
+            get('vp8Button').className = "constraintsOff" ;
+            get('h264Button').className = "constraintsOff" ;
         }
     };
 
@@ -321,35 +360,39 @@
 
     get("vgaButton").onclick = function() {
         var item = get('vgaButton');
-        if(item.className == "constraintsOn") {
-            item.className="constraintsOff";
-            HD = true ;
-        } else {
+        if(item.className == "constraintsOff") {
             item.className="constraintsOn";
+            VGA = true ;
             HD = false ;
+            QVGA = false ;
+            get('qvgaButton').className = "constraintsOff" ;
+            get('hdButton').className = "constraintsOff" ;
+
         }
     };
 
 
     get("qvgaButton").onclick = function() {
         var item = get('qvgaButton');
-        if(item.className == "constraintsOn") {
-            item.className="constraintsOff";
-            HD = true ;
-        } else {
+        if(item.className == "constraintsOff") {
             item.className="constraintsOn";
             HD = false ;
+            VGA = false ;
+            QVGA = true ;
+            get('vgaButton').className = "constraintsOff" ;
+            get('hdButton').className = "constraintsOff" ;
         }
     };
 
     get("hdButton").onclick = function() {
         var item = get('hdButton');
-        if(item.className == "constraintsOn") {
-            item.className="constraintsOff";
-            HD = false ;
-        } else {
+        if(item.className == "constraintsOff") {
             item.className="constraintsOn";
             HD = true ;
+            VGA = false ;
+            QVGA = false ;
+            get('qvgaButton').className = "constraintsOff" ;
+            get('vgaButton').className = "constraintsOff" ;
         }
     };
 
@@ -363,6 +406,7 @@
             mozFakeVideo = true ;
         }
     };
+
 
 
 
@@ -412,7 +456,7 @@
         log("Info stored at application cache");
     }
 
-    
+
     // On Joining Channel
     get('joinChannel').onclick = function () {
         dataChannelOpened = false ;
