@@ -4,11 +4,11 @@ var dumpBlob ="";
 // Time before video measurements
 var WAITING_STEPS= 1;
 // Video measurement duration
-var COLLECTION_STEPS = 60 ;
+var COLLECTION_STEPS = 120 ;
 
 
 //Google
-var defaultConstratints = true ;
+var defaultConstratints = false ;
 var HD = false ;
 var VGA = true ;
 var QVGA = false ;

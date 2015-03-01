@@ -191,10 +191,3 @@ app.get('/js/Chart.js', function(req,res){
     res.sendFile(__dirname + '/js/Chart.js');
 });
 
-app.get('/test.webm', function(req,res){
-    res.sendFile(__dirname + '/test.webm');
-});
-
-app.get('/test.mp4', function(req,res){
-    res.sendFile(__dirname + '/test.mp4');
-});
