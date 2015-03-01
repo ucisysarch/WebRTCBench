@@ -143,7 +143,7 @@ io.sockets.on('connection',function(socket){
 			// Broadcast the message to everyone else subscribed to this channel
 			socket.broadcast.to(signal.channel).emit('message', data);
 			var t_bm = Date.now() ;
-			console.log('Message broadcasted' + t_bm.toString() ) ;
+			console.log('Message broadcasted s' + t_bm.toString() ) ;
 	});
 	// On peer disconnected
     socket.on('disconnect', function(){
@@ -154,40 +154,47 @@ io.sockets.on('connection',function(socket){
 
 // Handle resource request by server
 app.get('/',function(req,res){
-    res.sendfile(__dirname + '/webRTCBench.html');
+    res.sendFile(__dirname + '/webRTCBench.html');
 });
 app.get('/webRTCBench.html',function(req,res){
-    res.sendfile(__dirname + '/webRTCBench.html');
+    res.sendFile(__dirname + '/webRTCBench.html');
 });
 app.get('/WebRTCBenchGuide.html', function(req,res){
-	res.sendfile(__dirname + '/WebRTCBenchGuide.html');
+	res.sendFile(__dirname + '/WebRTCBenchGuide.html');
 });
 
 app.get('/Scheme.png', function(req,res){
-	res.sendfile(__dirname + '/Scheme.png');
+	res.sendFile(__dirname + '/Scheme.png');
 });
 
 app.get('/flow.png', function(req,res){
-	res.sendfile(__dirname + '/flow.png');
+	res.sendFile(__dirname + '/flow.png');
 });
 
 app.get('/js/main.js', function(req,res){
-    res.sendfile(__dirname + '/js/main.js');
+    res.sendFile(__dirname + '/js/main.js');
 });
 
 app.get('/js/adapter.js', function(req,res){
-    res.sendfile(__dirname + '/js/adapter.js');
+    res.sendFile(__dirname + '/js/adapter.js');
 });
 
 app.get('/js/events.js', function(req,res){
-    res.sendfile(__dirname + '/js/events.js');
+    res.sendFile(__dirname + '/js/events.js');
 });
 
 app.get('/css/style.css', function(req,res){
-    res.sendfile(__dirname + '/css/style.css');
+    res.sendFile(__dirname + '/css/style.css');
 });
 
-app.get('/js/chart.js', function(req,res){
-    res.sendfile(__dirname + '/js/chart.js');
+app.get('/js/Chart.js', function(req,res){
+    res.sendFile(__dirname + '/js/Chart.js');
 });
 
+app.get('/test.webm', function(req,res){
+    res.sendFile(__dirname + '/test.webm');
+});
+
+app.get('/test.mp4', function(req,res){
+    res.sendFile(__dirname + '/test.mp4');
+});

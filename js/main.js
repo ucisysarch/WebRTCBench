@@ -2,12 +2,13 @@ var dumpBlob ="";
 
 
 // Time before video measurements
-var WAITING_STEPS= 10;
+var WAITING_STEPS= 1;
 // Video measurement duration
-var COLLECTION_STEPS = 10 ;
+var COLLECTION_STEPS = 60 ;
 
 
 //Google
+var defaultConstratints = true ;
 var HD = false ;
 var VGA = true ;
 var QVGA = false ;
@@ -1025,160 +1026,162 @@ function addFiles(files) {
     }
 }
 
+
 //This method will be called by caller side, and initiate a WebRTC connection
-function initConnection(caller) {
-    var userName = get("username");
-    localName = userName.value || ("AnonUser" + Math.round(Math.random() * 1000 + Math.random() * 65));
-    get("welcome").innerHTML = "Welcome " + localName;
-    userName.disabled = true;
-    userName.style.display = "none";
-    eventLogger.verbose(events.Events.CREATING_PC, time());
-    // create the WebRTC peer connection object
+    function initConnection(caller) {
+        var userName = get("username");
+        localName = userName.value || ("AnonUser" + Math.round(Math.random() * 1000 + Math.random() * 65));
+        get("welcome").innerHTML = "Welcome " + localName;
+        userName.disabled = true;
+        userName.style.display = "none";
+        eventLogger.verbose(events.Events.CREATING_PC, time());
+        // create the WebRTC peer connection object
 
-    options = undefined; // For interoperability between Chrome and FF32+
-    options  = {
-        mandatory: { googIPv6: true }
-    };
-    var options = {
-        "optional": [
-            {DtlsSrtpKeyAgreement: true}//,
-            //{RtpDataChannels: getData}
-        ],
-        mandatory: { googIPv6: true }
-    };
-    peerConnection = new RTCPeerConnection(null,options);//server, options);
-    eventLogger.verbose(events.Events.PC_CREATED, time());
-    peerConnection.oniceconnectionstatechange = function (ice_state) {
-        log( peerConnection.iceGatheringState + " " + peerConnection.iceConnectionState );
-        if (peerConnection.iceConnectionState == "connected") {
-            eventLogger.info(events.Events.ICE_CONNECTED, time());
-        }
-    };
-
-    // this handler sends ice candidates to other peer
-    peerConnection.onicecandidate = function (iceEvent) {
-        eventLogger.verbose(events.Events.NEW_ICE_CANDIDATE, time());
-        if (iceEvent.candidate) {
-            signallingSocket.emit("message",
-                JSON.stringify({
-                    channel: channel,
-                    type: "new_ice_candidate",
-                    candidate: iceEvent.candidate
-                })
-            );
-            if (detectedBrowser == "Firefox") {
-                //peerConnection.onicecandidate = null ;
+        options = undefined; // For interoperability between Chrome and FF32+
+        options = {
+            mandatory: { googIPv6: true }
+        };
+        var options = {
+            "optional": [
+                {DtlsSrtpKeyAgreement: true}//,
+                //{RtpDataChannels: getData}
+            ],
+            mandatory: { googIPv6: true }
+        };
+        peerConnection = new RTCPeerConnection(null, options);//server, options);
+        eventLogger.verbose(events.Events.PC_CREATED, time());
+        peerConnection.oniceconnectionstatechange = function (ice_state) {
+            log(peerConnection.iceGatheringState + " " + peerConnection.iceConnectionState);
+            if (peerConnection.iceConnectionState == "connected") {
+                eventLogger.info(events.Events.ICE_CONNECTED, time());
             }
-        }
-    };
-    if (getVideo || getAudio || receiveAudio || receiveVideo ) {
-        peerConnection.onaddstream = function (event) {
-            eventLogger.info(events.Events.REMOTE_STREAM_ARRIVED, time());
-            remoteStreamArrived = true;
-            var media = document.createElement(receiveAudio && !receiveVideo ? 'audio' : 'video');
-            media.id = "remoteView0";
-            var status = document.createElement('div');
-            status.id = "rmtStatus";
+        };
 
-            if (detectedBrowser == "Chrome") {
-                media.src = webkitURL.createObjectURL(event.stream);
-                media.autoplay = true;
-            } else {
-                if (window.URL) {
-                    media.src = window.URL.createObjectURL(event.stream);
-                } else {
-                    media.src = stream;
+        // this handler sends ice candidates to other peer
+        peerConnection.onicecandidate = function (iceEvent) {
+            eventLogger.verbose(events.Events.NEW_ICE_CANDIDATE, time());
+            if (iceEvent.candidate) {
+                signallingSocket.emit("message",
+                    JSON.stringify({
+                        channel: channel,
+                        type: "new_ice_candidate",
+                        candidate: iceEvent.candidate
+                    })
+                );
+                if (detectedBrowser == "Firefox") {
+                    //peerConnection.onicecandidate = null ;
                 }
-                media.play();
             }
+        };
+        if (getVideo || getAudio || receiveAudio || receiveVideo) {
+            peerConnection.onaddstream = function (event) {
+                eventLogger.info(events.Events.REMOTE_STREAM_ARRIVED, time());
+                remoteStreamArrived = true;
+                var media = document.createElement(receiveAudio && !receiveVideo ? 'audio' : 'video');
+                media.id = "remoteView0";
+                var status = document.createElement('div');
+                status.id = "rmtStatus";
 
-            var interval_r;
-            media.addEventListener('play', function () {
-                interval_r = setInterval(function () {
-                    if (media.videoWidth != 0) {
-                        clearInterval(interval_r);
-                        eventLogger.info(events.Events.REMOTE_PLAYBACK_STARTED, time());
-                        log("W:" + media.videoWidth + " H:" + media.videoHeight);
-                        if ( sendEvents && ( !getData || (getData && dataChannelOpened) ) && !videoStats ) {
-                            sendEventLogs();
-                        }
+                if (detectedBrowser == "Chrome") {
+                    media.src = webkitURL.createObjectURL(event.stream);
+                    media.autoplay = true;
+                } else {
+                    if (window.URL) {
+                        media.src = window.URL.createObjectURL(event.stream);
+                    } else {
+                        media.src = stream;
                     }
-                }, 50);
+                    media.play();
+                }
 
-            }, false);
-            window.get("remote-streams").appendChild(media);
-            window.get("remote-streams").appendChild(status);
-
-
-
-            if( videoStats ) {
-                var decBitRateData = {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: "Decoder Bitrate",
-                            fillColor: "rgba(220,220,220,0.2)",
-                            strokeColor: "rgba(220,220,220,1)",
-                            pointColor: "rgba(220,220,220,1)",
-                            pointStrokeColor: "#fff",
-                            pointHighlightFill: "#fff",
-                            pointHighlightStroke: "rgba(220,220,220,1)",
-                            data: []
+                var interval_r;
+                media.addEventListener('play', function () {
+                    interval_r = setInterval(function () {
+                        if (media.videoWidth != 0) {
+                            clearInterval(interval_r);
+                            eventLogger.info(events.Events.REMOTE_PLAYBACK_STARTED, time());
+                            log("W:" + media.videoWidth + " H:" + media.videoHeight);
+                            if (sendEvents && ( !getData || (getData && dataChannelOpened) ) && !videoStats) {
+                                sendEventLogs();
+                            }
                         }
-                    ]
-                };
+                    }, 50);
 
-                var decFrameRateData = {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: "Decoder FPS",
-                            fillColor: "rgba(220,220,220,0.2)",
-                            strokeColor: "rgba(220,220,220,1)",
-                            pointColor: "rgba(220,220,220,1)",
-                            pointStrokeColor: "#fff",
-                            pointHighlightFill: "#fff",
-                            pointHighlightStroke: "rgba(220,220,220,1)",
-                            data: []
-                        }
-                    ]
-                };
-
-                var decResData = {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: "Decoded Video Resolution",
-                            fillColor: "rgba(220,220,220,0.2)",
-                            strokeColor: "rgba(220,220,220,1)",
-                            pointColor: "rgba(220,220,220,1)",
-                            pointStrokeColor: "#fff",
-                            pointHighlightFill: "#fff",
-                            pointHighlightStroke: "rgba(220,220,220,1)",
-                            data: []
-                        }
-                    ]
-                };
-
-                var  collectionData = [ ] ;
-                var stepsRemained = WAITING_STEPS;
-                var statCollector = setInterval(function () {
+                }, false);
+                window.get("remote-streams").appendChild(media);
+                window.get("remote-streams").appendChild(status);
 
 
-                    remoteVideo = get('remoteView0');
-                    if (remoteVideo  ) {
-                        if (stepsRemained === 0) {
-                            if( detectedBrowser == "Chrome")
-                                log("Capturer/Sender/LocalRender/LocalRenderDropped/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate/AvbSent/AvbReceived/TransmitBitrate");
-                            //else if ( detectedBrowser == "Firefox")
-                            //    log("PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate");
-                        } else if (stepsRemained == -1 * COLLECTION_STEPS) {
-                            get("rmtStatus").innerHTML = remoteVideo.videoWidth + "x" + remoteVideo.videoHeight + "<br>" +
-                                "Stats finished ";
+                if (videoStats) {
+                    var decBitRateData = {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: "Decoder Bitrate",
+                                fillColor: "rgba(220,220,220,0.2)",
+                                strokeColor: "rgba(220,220,220,1)",
+                                pointColor: "rgba(220,220,220,1)",
+                                pointStrokeColor: "#fff",
+                                pointHighlightFill: "#fff",
+                                pointHighlightStroke: "rgba(220,220,220,1)",
+                                data: []
+                            }
+                        ]
+                    };
+
+                    var decFrameRateData = {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: "Decoder FPS",
+                                fillColor: "rgba(220,220,220,0.2)",
+                                strokeColor: "rgba(220,220,220,1)",
+                                pointColor: "rgba(220,220,220,1)",
+                                pointStrokeColor: "#fff",
+                                pointHighlightFill: "#fff",
+                                pointHighlightStroke: "rgba(220,220,220,1)",
+                                data: []
+                            }
+                        ]
+                    };
+
+                    var decResData = {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: "Decoded Video Resolution",
+                                fillColor: "rgba(220,220,220,0.2)",
+                                strokeColor: "rgba(220,220,220,1)",
+                                pointColor: "rgba(220,220,220,1)",
+                                pointStrokeColor: "#fff",
+                                pointHighlightFill: "#fff",
+                                pointHighlightStroke: "rgba(220,220,220,1)",
+                                data: []
+                            }
+                        ]
+                    };
+
+                    var collectionData = [ ];
+                    var stepsRemained = WAITING_STEPS;
+                    var statCollector = setInterval(function () {
 
 
-                            for( i = 0 ;i < collectionData.length ; ++i  ){
-                                cdata = collectionData[i];
+                        remoteVideo = get('remoteView0');
+                        if (remoteVideo) {
+                            if (stepsRemained === 0) {
+                                --stepsRemained;
+                                if (detectedBrowser == "Chrome")
+                                    log("Capturer/Sender/LocalRender/LocalRenderDropped/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate/AvbSent/AvbReceived/TransmitBitrate");
+                                //else if ( detectedBrowser == "Firefox")
+                                //    log("PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate");
+                            } else if (stepsRemained == -1 * COLLECTION_STEPS) {
+                                --stepsRemained;
+                                get("rmtStatus").innerHTML = remoteVideo.videoWidth + "x" + remoteVideo.videoHeight + "<br>" +
+                                    "Stats finished ";
+
+
+                                for (i = 0; i < collectionData.length; ++i) {
+                                    cdata = collectionData[i];
 
                                     //Decoder
 
@@ -1188,127 +1191,111 @@ function initConnection(caller) {
                                     decFrameRateData.labels.push(parseInt(cdata.timer));
                                     decFrameRateData.datasets[0].data.push(cdata.receiver.frameRate);
 
-                                    decResData.labels.push(parseInt(cdata.timer  ));
-                                    decResData.datasets[0].data.push(cdata.receiver.height* cdata.receiver.width);
+                                    decResData.labels.push(parseInt(cdata.timer));
+                                    decResData.datasets[0].data.push(cdata.receiver.height * cdata.receiver.width);
 
 
+                                }
+                                var ctx = document.getElementById("chartDecBitRate").getContext("2d");
+                                var brChart = new Chart(ctx).Line(decBitRateData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+                                var ctx2 = document.getElementById("chartDecFPS").getContext("2d");
+                                var frChart = new Chart(ctx2).Line(decFrameRateData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+                                var ctx3 = document.getElementById("chartDecRes").getContext("2d");
+                                var rChart = new Chart(ctx3).Line(decResData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
 
+                                //log(JSON.stringify(decFrameRateData));
+
+
+                                sendEventLogs();
                             }
-                            var ctx = document.getElementById("chartDecBitRate").getContext("2d");
-                            var brChart = new Chart(ctx).Line(decBitRateData,{responsive:true, maintainAspectRatio: false, scaleShowLabels : true});
-                            var ctx2 = document.getElementById("chartDecFPS").getContext("2d");
-                            var frChart = new Chart(ctx2).Line(decFrameRateData,{responsive:true, maintainAspectRatio: false, scaleShowLabels : true});
-                            var ctx3 = document.getElementById("chartDecRes").getContext("2d");
-                            var rChart = new Chart(ctx3).Line(decResData,{responsive:true, maintainAspectRatio: false, scaleShowLabels : true});
-
-                            log(JSON.stringify(decFrameRateData));
-
-
-                            sendEventLogs();
+                            else if (stepsRemained < 0) {
+                                --stepsRemained;
+                                get("rmtStatus").innerHTML = remoteVideo.videoWidth + "x" + remoteVideo.videoHeight;
+                            } else {
+                                --stepsRemained;
+                                get("rmtStatus").innerHTML = remoteVideo.videoWidth + "x" + remoteVideo.videoHeight + "<br>" +
+                                    "Stats begin in " + stepsRemained + " seconds";
+                            }
+                            if (stepsRemained <= 0 && stepsRemained > -1 * COLLECTION_STEPS)
+                                collectStats(true, collectionData);
+                            else
+                                collectStats(false, collectionData);
                         }
-                        else if (stepsRemained < 0) {
-                            get("rmtStatus").innerHTML = remoteVideo.videoWidth + "x" + remoteVideo.videoHeight;
-                        } else {
-                            get("rmtStatus").innerHTML = remoteVideo.videoWidth + "x" + remoteVideo.videoHeight + "<br>" +
-                                "Stats begin in " + stepsRemained + " seconds";
-                        }
-                        if (stepsRemained <= 0 && stepsRemained > -1*COLLECTION_STEPS)
-                            collectStats(true,collectionData);
-                        else
-                            collectStats(false,collectionData);
-                        --stepsRemained;
-                    }
 
 
-                }, 1000);
-            }
-        };
-        peerConnection.onremovestream = function (event) {
-            log('Remote stream removed.');
-        };
-        if( getAudio || getVideo )
-            getMedia();
-    }
-    if (getData) {
-       // var onMessage = function (event) {
-       //     var t_msg = time();
-       //     appendDIV(event.data);
-       //     log("Text message received at " + t_msg.toString());
-       // };
-
-        var onMessage = function (event) {
-            var t_msg = time() ;
-            var blob = event.data; // Firefox allows sending blobs directly
-            //saveToDisk(blob, 'fake');
-            if( typeof blob === "object" )
-            {
-                var blob = new Blob([event.data], {type:"image/png"});
-                var reader = new FileReader();
-                reader.onload = function(file) {
-                    if (reader.readyState == FileReader.DONE) {
-                        log("File received at " + time().toString() );
-                        //document.getElementById("dataChannelReceive").src = file.target.result;
-                        console.log("File gotten");
-                        saveToDisk(file.target.result, 'fake');
-                    }
+                    }, 1000);
                 }
-                reader.readAsDataURL(blob);
-            }
-            else
-            {
-               if( blob.toString().indexOf("ping") >= 0 ){
-                   dataChannel.send("pong " + time() );
-                   //log("ping received at " + t_msg.toString() ) ;
-               }
-               else if( blob.toString().indexOf("pong") >= 0 ){
-                log(blob.toString() + " received at " + t_msg.toString() ) ;
-
-            } else {
-                log("text received at " + t_msg.toString() ) ;
-                appendDIV(event.data);
-            }
-
-            }
-        };
-        var dcOpened = function() {
-            eventLogger.info(events.Events.DATA_CHANNEL_OPENED, time());
-            get('chat-input').disabled = false;
-            dataChannelOpened = true;
-            if (sendEvents && !videoStats && (  (!getAudio && !getVideo) || remoteStreamArrived )) {
-                sendEventLogs();
-            }
-            var sendButton = get('sendbtn');
-            sendButton.onclick =  function(){
-                log("Started Sending file at " + time().toString() );
-                dataChannel.send(sendBlob);
             };
-
-        };
-        if (caller) {
-            var dataChannelOptions = dcOrdered ? {
-                ordered: true
-            } : {
-                ordered: false, // do not guarantee order
-                maxRetransmitTime: 3000 // in milliseconds
-            } ;
-            dataChannel = peerConnection.createDataChannel("dc1", dataChannelOptions);
-            eventLogger.verbose(events.Events.CREATING_DATA_CHANNEL, time());
-            dataChannel.onerror = function (error) {
-                log("Data Channel Error:" + error);
+            peerConnection.onremovestream = function (event) {
+                log('Remote stream removed.');
             };
-            dataChannel.onmessage = onMessage;
-            dataChannel.onopen = dcOpened;
-            dataChannel.onclose = function () {
-                log("The Data Channel is closed");
-            };
+            if (getAudio || getVideo)
+                getMedia();
         }
-        else {
-            peerConnection.ondatachannel = function (e) {
+        if (getData) {
+            // var onMessage = function (event) {
+            //     var t_msg = time();
+            //     appendDIV(event.data);
+            //     log("Text message received at " + t_msg.toString());
+            // };
+
+            var onMessage = function (event) {
+                var t_msg = time();
+                var blob = event.data; // Firefox allows sending blobs directly
+                //saveToDisk(blob, 'fake');
+                if (typeof blob === "object") {
+                    var blob = new Blob([event.data], {type: "image/png"});
+                    var reader = new FileReader();
+                    reader.onload = function (file) {
+                        if (reader.readyState == FileReader.DONE) {
+                            log("File received at " + time().toString());
+                            //document.getElementById("dataChannelReceive").src = file.target.result;
+                            console.log("File gotten");
+                            saveToDisk(file.target.result, 'fake');
+                        }
+                    }
+                    reader.readAsDataURL(blob);
+                }
+                else {
+                    if (blob.toString().indexOf("ping") >= 0) {
+                        dataChannel.send("pong " + time());
+                        //log("ping received at " + t_msg.toString() ) ;
+                    }
+                    else if (blob.toString().indexOf("pong") >= 0) {
+                        log(blob.toString() + " received at " + t_msg.toString());
+
+                    } else {
+                        log("text received at " + t_msg.toString());
+                        appendDIV(event.data);
+                    }
+
+                }
+            };
+            var dcOpened = function () {
+                eventLogger.info(events.Events.DATA_CHANNEL_OPENED, time());
                 get('chat-input').disabled = false;
-                dataChannel = e.channel;
+                dataChannelOpened = true;
+                if (sendEvents && !videoStats && (  (!getAudio && !getVideo) || remoteStreamArrived )) {
+                    sendEventLogs();
+                }
+                var sendButton = get('sendbtn');
+                sendButton.onclick = function () {
+                    log("Started Sending file at " + time().toString());
+                    dataChannel.send(sendBlob);
+                };
+
+            };
+            if (caller) {
+                var dataChannelOptions = dcOrdered ? {
+                    ordered: true
+                } : {
+                    ordered: false, // do not guarantee order
+                    maxRetransmitTime: 3000 // in milliseconds
+                };
+                dataChannel = peerConnection.createDataChannel("dc1", dataChannelOptions);
                 eventLogger.verbose(events.Events.CREATING_DATA_CHANNEL, time());
                 dataChannel.onerror = function (error) {
-                    log("Data Channel Error:", error);
+                    log("Data Channel Error:" + error);
                 };
                 dataChannel.onmessage = onMessage;
                 dataChannel.onopen = dcOpened;
@@ -1316,387 +1303,411 @@ function initConnection(caller) {
                     log("The Data Channel is closed");
                 };
             }
-        }
-
-        if( dataStats ){
-            var statCollector = setInterval(function () {
-                if (dataChannelOpened) {
-                    //if (detectedBrowser == "Chrome") {
-                        collectDataChannelStats();
-                    //}
+            else {
+                peerConnection.ondatachannel = function (e) {
+                    get('chat-input').disabled = false;
+                    dataChannel = e.channel;
+                    eventLogger.verbose(events.Events.CREATING_DATA_CHANNEL, time());
+                    dataChannel.onerror = function (error) {
+                        log("Data Channel Error:", error);
+                    };
+                    dataChannel.onmessage = onMessage;
+                    dataChannel.onopen = dcOpened;
+                    dataChannel.onclose = function () {
+                        log("The Data Channel is closed");
+                    };
                 }
-            }, 1000);
+            }
+
+            if (dataStats) {
+                var statCollector = setInterval(function () {
+                    if (dataChannelOpened) {
+                        //if (detectedBrowser == "Chrome") {
+                        collectDataChannelStats();
+                        //}
+                    }
+                }, 1000);
+            }
+
+        }
+        // Open Connection to Signalling Server
+        var signallingServer = '/';
+        var channel = window.get("channel").value;
+        var sender = Math.round(Math.random() * 60535) + 5000;
+        eventLogger.verbose(events.Events.CONNECTING_TO_SIGNALLING_SERVER, time());
+        signallingSocket = io.connect(signallingServer);
+        signallingSocket.on('connect', function () {
+            eventLogger.verbose(events.Events.CONNECTED_TO_SIGNALLING_SERVER, time());
+            signallingSocket.emit("channel", channel);
+        });
+        if (caller) {
+            signallingSocket.on('message', function (event) {
+                callerSignalHandler(event);
+            });
+        }
+        else {
+            signallingSocket.on('message', function (data) {
+                calleeSignalHandler(data);
+            });
+        }
+    }
+
+    function onNewDescriptionCreatedAnswer(description) {
+        if (caller) {
+            eventLogger.info(events.Events.OFFER_CREATED, time().toString());
+        }
+        else {
+            eventLogger.info(events.Events.ANSWER_CREATED, time().toString());
         }
 
-    }
-    // Open Connection to Signalling Server
-    var signallingServer = '/';
-    var channel = window.get("channel").value;
-    var sender = Math.round(Math.random() * 60535) + 5000;
-    eventLogger.verbose(events.Events.CONNECTING_TO_SIGNALLING_SERVER, time());
-    signallingSocket = io.connect(signallingServer);
-    signallingSocket.on('connect', function () {
-        eventLogger.verbose(events.Events.CONNECTED_TO_SIGNALLING_SERVER, time());
-        signallingSocket.emit("channel", channel);
-    });
-    if (caller) {
-        signallingSocket.on('message', function (event) {
-            callerSignalHandler(event);
-        });
-    }
-    else {
-        signallingSocket.on('message', function (data) {
-            calleeSignalHandler(data);
-        });
-    }
-}
+        if (h264 && (!description.sdp.match(/a=rtpmap:[0-9]+ H264/g))) {
+            log("No H264 found in the answer!!!");
+        } else {
+            log("H264 Found in the answer");
+        }
 
-function onNewDescriptionCreatedAnswer(description) {
-    if (caller) {
-        eventLogger.info(events.Events.OFFER_CREATED, time().toString());
-    }
-    else {
-        eventLogger.info(events.Events.ANSWER_CREATED, time().toString());
-    }
-
-    if ( h264 && (!description.sdp.match(/a=rtpmap:[0-9]+ H264/g))) {
-        log("No H264 found in the answer!!!");
-    } else{
-        log("welldone");
-    }
-
-    peerConnection.setLocalDescription(description, function () {
-            signallingSocket.emit("message",
-                JSON.stringify({
-                    channel: channel,
-                    type: "new_description",
-                    sdp: description
-                })
-            );
-        },
-        logError
-    );
-}
-
-function onNewDescriptionCreatedOffer(description) {
-    if (caller) {
-        eventLogger.info(events.Events.OFFER_CREATED, time().toString());
-    }
-    else {
-        eventLogger.info(events.Events.ANSWER_CREATED, time().toString());
-    }
-
-
-    if( h264 ){
-        description.sdp = mozRemoveVP8(description.sdp)
-    }
-    if( vp9 ){
-        description.sdp = googmakeVp9Default(description.sdp);
-    }
-
-    peerConnection.setLocalDescription(description, function () {
-            signallingSocket.emit("message",
-                JSON.stringify({
-                    channel: channel,
-                    type: "new_description",
-                    sdp: description
-                })
-            );
-        },
-        logError
-    );
-}
-
-
-
-function onAddIceCandidateSuccess() {
-    log('AddIceCandidate success.');
-}
-
-function onAddIceCandidateError(error) {
-    log('Failed to add Ice Candidate: ' + error.toString());
-}
-
-
-// handle signals received by caller
-function callerSignalHandler(event) {
-    var signal = JSON.parse(event);
-    if (signal.type === "callee_arrived") {
-        eventLogger.info(events.Events.CALLEE_ARRIVED, time());
-        eventLogger.info(events.Events.CREATING_OFFER, time());
-        peerConnection.createOffer(
-            onNewDescriptionCreatedOffer,
-            logError
-        );
-    } else if (signal.type === "new_ice_candidate") {
-        peerConnection.addIceCandidate(
-            new RTCIceCandidate(signal.candidate),
-            onAddIceCandidateSuccess, onAddIceCandidateError
-        );
-    } else if (signal.type === "new_description") {
-        log("caller");
-        eventLogger.verbose(events.Events.SETTING_REMOTE_DESCRIPTION, time());
-        console.log(signal.sdp);
-        peerConnection.setRemoteDescription(
-
-            new RTCSessionDescription(signal.sdp),
-            function () {
-                eventLogger.verbose(events.Events.REMOTE_DESCRIPTION_SET, time());
+        peerConnection.setLocalDescription(description, function () {
+                signallingSocket.emit("message",
+                    JSON.stringify({
+                        channel: channel,
+                        type: "new_description",
+                        sdp: description
+                    })
+                );
             },
             logError
         );
     }
-}
+
+    function onNewDescriptionCreatedOffer(description) {
+        if (caller) {
+            eventLogger.info(events.Events.OFFER_CREATED, time().toString());
+        }
+        else {
+            eventLogger.info(events.Events.ANSWER_CREATED, time().toString());
+        }
+
+
+        if (h264) {
+            description.sdp = mozRemoveVP8(description.sdp)
+        }
+        if (vp9) {
+            description.sdp = googmakeVp9Default(description.sdp);
+        }
+
+        peerConnection.setLocalDescription(description, function () {
+                signallingSocket.emit("message",
+                    JSON.stringify({
+                        channel: channel,
+                        type: "new_description",
+                        sdp: description
+                    })
+                );
+            },
+            logError
+        );
+    }
+
+
+    function onAddIceCandidateSuccess() {
+        log('AddIceCandidate success.');
+    }
+
+    function onAddIceCandidateError(error) {
+        log('Failed to add Ice Candidate: ' + error.toString());
+    }
+
+
+// handle signals received by caller
+    function callerSignalHandler(event) {
+        var signal = JSON.parse(event);
+        if (signal.type === "callee_arrived") {
+            eventLogger.info(events.Events.CALLEE_ARRIVED, time());
+            eventLogger.info(events.Events.CREATING_OFFER, time());
+            peerConnection.createOffer(
+                onNewDescriptionCreatedOffer,
+                logError
+            );
+        } else if (signal.type === "new_ice_candidate") {
+            peerConnection.addIceCandidate(
+                new RTCIceCandidate(signal.candidate),
+                onAddIceCandidateSuccess, onAddIceCandidateError
+            );
+        } else if (signal.type === "new_description") {
+            log("caller");
+            eventLogger.verbose(events.Events.SETTING_REMOTE_DESCRIPTION, time());
+            console.log(signal.sdp);
+            peerConnection.setRemoteDescription(
+                new RTCSessionDescription(signal.sdp),
+                function () {
+                    eventLogger.verbose(events.Events.REMOTE_DESCRIPTION_SET, time());
+                },
+                logError
+            );
+        }
+    }
 
 // handle signals received by callee
-function calleeSignalHandler(event) {
-    var signal = JSON.parse(event);
-    if (signal.type === "new_ice_candidate") {
-        peerConnection.addIceCandidate(
-            new RTCIceCandidate(signal.candidate),
-            onAddIceCandidateSuccess, onAddIceCandidateError
-        );
-    } else if (signal.type === "new_description") {
-        log("callee");
-        eventLogger.verbose(events.Events.SETTING_REMOTE_DESCRIPTION, time());
-        peerConnection.setRemoteDescription(
-            new RTCSessionDescription(signal.sdp),
-            function () {
-                eventLogger.verbose(events.Events.REMOTE_DESCRIPTION_SET, time());
-                if (peerConnection.remoteDescription.type == "offer") {
-                    eventLogger.verbose(events.Events.CREATING_ANSWER, time());
-                    peerConnection.createAnswer(onNewDescriptionCreatedAnswer, logError);
-                }
-            }, logError);
+    function calleeSignalHandler(event) {
+        var signal = JSON.parse(event);
+        if (signal.type === "new_ice_candidate") {
+            peerConnection.addIceCandidate(
+                new RTCIceCandidate(signal.candidate),
+                onAddIceCandidateSuccess, onAddIceCandidateError
+            );
+        } else if (signal.type === "new_description") {
+            log("callee");
+            eventLogger.verbose(events.Events.SETTING_REMOTE_DESCRIPTION, time());
+            peerConnection.setRemoteDescription(
+                new RTCSessionDescription(signal.sdp),
+                function () {
+                    eventLogger.verbose(events.Events.REMOTE_DESCRIPTION_SET, time());
+                    if (peerConnection.remoteDescription.type == "offer") {
+                        eventLogger.verbose(events.Events.CREATING_ANSWER, time());
+                        peerConnection.createAnswer(onNewDescriptionCreatedAnswer, logError);
+                    }
+                }, logError);
+        }
     }
-}
 
 // Get User Media
-function getMedia() {
-    eventLogger.verbose(events.Events.GETTING_MEDIA, time());
-    var video_constraints = HD? {optional: [], mandatory: {minHeight: 720, minWidth: 1280}} : VGA ? {optional: [], mandatory: { minFrameRate: 30, maxHeight: 480, maxWidth: 640,minHeight: 480, minWidth: 640}}: {optional: [], mandatory: { minFrameRate: 30, maxHeight: 240, maxWidth: 320}};
-    getUserMedia(
-        ( detectedBrowser == "Firefox"  ) ? //Constrainst are not supported by FF yet
-        {
-            audio: getAudio ? true : false,
-            video: getVideo ? true : false,
-            fake: mozFakeVideo
-        } :
-        {
-            audio: getAudio? true : false,
-            video: getVideo ? video_constraints : false
-}
-              , streaming, function (e) {
-            console.error(e);
-            log(e);
-        });
-    function streaming(stream) {
-        eventLogger.verbose(events.Events.LOCAL_MEDIA_CAPTURED, time());
-        var localMedia = document.createElement((getAudio && !getVideo) ? 'audio' : 'video');
-        if( getVideo ){
-           // localMedia.setAttribute("width", "640");
-          //  localMedia.setAttribute("height", "480");
-        }
-        localMedia.id = "localView";
-        if (detectedBrowser == "Chrome") {
-            localMedia.src = webkitURL.createObjectURL(stream);
-            localMedia.autoplay = true;
-        } else {
-            if (window.URL) {
-                localMedia.src = window.URL.createObjectURL(stream);
-            } else {
-                localMedia.src = stream;
+    function getMedia() {
+        eventLogger.verbose(events.Events.GETTING_MEDIA, time());
+        var video_constraints = !defaultConstratints ? HD ? {optional: [], mandatory: {minHeight: 720, minWidth: 1280}} : VGA ? {optional: [], mandatory: { minFrameRate: 30, maxHeight: 480, maxWidth: 640, minHeight: 480, minWidth: 640}} : {optional: [], mandatory: { minFrameRate: 30, maxHeight: 240, maxWidth: 320}} : true;
+
+       // if( detectedBrowser == "Firefox" && mozFakeVideo ){
+        //    var vwc = window.get("wv");
+        //    log(vwc);
+         //   streaming(vwc.mozCaptureStream());
+
+
+
+
+        //} else {
+            getUserMedia(
+                ( detectedBrowser == "Firefox"  ) ? //Constrainst are not supported by FF yet
+                {
+                    audio: getAudio ? true : false,
+                    video: getVideo ? true : false,
+                    fake: mozFakeVideo
+                } :
+                {
+                    audio: getAudio ? true : false,
+                    video: getVideo ? video_constraints : false
+                }
+                , streaming, function (e) {
+                    console.error(e);
+                    log(e);
+                });
+       // }
+        function streaming(stream) {
+            eventLogger.verbose(events.Events.LOCAL_MEDIA_CAPTURED, time());
+            var localMedia = document.createElement((getAudio && !getVideo) ? 'audio' : 'video');
+            if (getVideo) {
+                // localMedia.setAttribute("width", "640");
+                //  localMedia.setAttribute("height", "480");
             }
-        }
+            localMedia.id = "localView";
+            if (detectedBrowser == "Chrome") {
+                localMedia.src = webkitURL.createObjectURL(stream);
+                localMedia.autoplay = true;
+            } else {
+                if (window.URL) {
+                    localMedia.src = window.URL.createObjectURL(stream);
+                } else {
+                    localMedia.src = stream;
+                }
+            }
 
-        var status = document.createElement('div');
-        status.id = "localStatus";
-
-
-      //  localMedia.addEventListener('play', function () {
-      //      log("onplay @" + time() );
-      //  }, false);
-
-
-      //  localMedia.addEventListener('play', function () {
-      ///      log("onplaying @" + time() );
-     //   }, false);
-
-
-      //  localMedia.addEventListener('canplay', function () {
-      //      log("oncanplay @" + time() );
-      //  }, false);
+            var status = document.createElement('div');
+            status.id = "localStatus";
 
 
-     //   localMedia.addEventListener('canplaythrough', function () {
-     //       log("canplaythrough @" + time() );
-     //   }, false);
+            //  localMedia.addEventListener('play', function () {
+            //      log("onplay @" + time() );
+            //  }, false);
 
 
+            //  localMedia.addEventListener('play', function () {
+            ///      log("onplaying @" + time() );
+            //   }, false);
 
 
-
-        localMedia.play();
-        peerConnection.addStream(stream);
-
-
-        // SENDER STATS
-        if( videoStats ) {
-            if (receiveVideo == false) {
-                var collectionData = [];
-                var stepsRemained = WAITING_STEPS;
-
-                var encBitRateData = {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: "Encoder Bitrate",
-                            fillColor: "rgba(220,220,220,0.2)",
-                            strokeColor: "rgba(220,220,220,1)",
-                            pointColor: "rgba(220,220,220,1)",
-                            pointStrokeColor: "#fff",
-                            pointHighlightFill: "#fff",
-                            pointHighlightStroke: "rgba(220,220,220,1)",
-                            data: []
-                        },
-                        {
-                            label: "Encoder Bitrate Target",
-                            fillColor: "rgba(220,220,220,0.2)",
-                            strokeColor: "rgba(220,220,220,1)",
-                            pointColor: "rgba(220,220,220,1)",
-                            pointStrokeColor: "#fff",
-                            pointHighlightFill: "#fff",
-                            pointHighlightStroke: "rgba(220,220,220,1)",
-                            data: []
-                        }
-                    ]
-                };
-
-                var encFrameRateData = {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: "Capture FPS",
-                            fillColor: "rgba(120,120,120,0.2)",
-                            strokeColor: "rgba(100,120,120,1)",
-                            pointColor: "rgba(120,120,120,1)",
-                            pointStrokeColor: "#fff",
-                            pointHighlightFill: "#fff",
-                            pointHighlightStroke: "rgba(120,120,120,1)",
-                            data: []
-                        } ,
-                        {
-                            label: "Encoder FPS",
-                            fillColor: "rgba(220,220,220,0.2)",
-                            strokeColor: "rgba(220,220,220,1)",
-                            pointColor: "rgba(220,220,220,1)",
-                            pointStrokeColor: "#fff",
-                            pointHighlightFill: "#fff",
-                            pointHighlightStroke: "rgba(220,220,220,1)",
-                            data: []
-                        }
-                    ]
-                };
+            //  localMedia.addEventListener('canplay', function () {
+            //      log("oncanplay @" + time() );
+            //  }, false);
 
 
-
-                var encResoloutionData = {
-                    labels: [],
-                    datasets: [
-                        {
-                            label: "Capture Res",
-                            fillColor: "rgba(120,120,120,0.2)",
-                            strokeColor: "rgba(100,120,120,1)",
-                            pointColor: "rgba(120,120,120,1)",
-                            pointStrokeColor: "#fff",
-                            pointHighlightFill: "#fff",
-                            pointHighlightStroke: "rgba(120,120,120,1)",
-                            data: []
-                        } ,
-                        {
-                            label: "Encoder Res",
-                            fillColor: "rgba(220,220,220,0.2)",
-                            strokeColor: "rgba(220,220,220,1)",
-                            pointColor: "rgba(220,220,220,1)",
-                            pointStrokeColor: "#fff",
-                            pointHighlightFill: "#fff",
-                            pointHighlightStroke: "rgba(220,220,220,1)",
-                            data: []
-                        }
-                    ]
-                };
-
-                var statCollector = setInterval(function () {
-                    if (stepsRemained === 0) {
-                        if (detectedBrowser == "Chrome")
-                            log("Capturer/Sender/LocalRender/LocalRenderDropped/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate/AvbSent/AvbReceived/TransmitBitrate");
-                        //else if (detectedBrowser == "Firefox")
-                       //     log("PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate");
-                    } else if (stepsRemained == -1 * COLLECTION_STEPS) {
-                        get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight + "<br>" +
-                            "Stats finished ";
-                        // Prepare the charts
-                        for (i = 0; i < collectionData.length; ++i) {
-                            cdata = collectionData[i];
-                            if ( true ) {
-                                if( detectedBrowser == "Chrome"){
-                                    encBitRateData.labels.push(parseInt(cdata.timer));
-                                    encBitRateData.datasets[0].data.push(cdata.sender.bitRate);
-                                    encBitRateData.datasets[1].data.push(cdata.sender.googTargetEncoderBitRate);
+            //   localMedia.addEventListener('canplaythrough', function () {
+            //       log("canplaythrough @" + time() );
+            //   }, false);
 
 
-                                    encResoloutionData.labels.push(cdata.timer);
-                                    encResoloutionData.datasets[0].data.push(cdata.sender.inputWidth * cdata.sender.inputHeight);
-                                    encResoloutionData.datasets[1].data.push(cdata.sender.width * cdata.sender.height);
+            localMedia.play();
+            peerConnection.addStream(stream);
 
 
-                                    encFrameRateData.labels.push(parseInt(cdata.timer));
-                                    encFrameRateData.datasets[0].data.push(cdata.sender.inputFrameRate);
-                                    encFrameRateData.datasets[1].data.push(cdata.sender.frameRate);
-                                } else {
-                                    encBitRateData.labels.push(parseInt(cdata.timer));
-                                    encBitRateData.datasets[0].data.push(cdata.sender.bitRate);
+            // SENDER STATS
+            if (videoStats) {
+                if (receiveVideo == false) {
+                    var collectionData = [];
+                    var stepsRemained = WAITING_STEPS;
 
-                                    encResoloutionData.labels.push(cdata.timer);
-                                    encResoloutionData.datasets[0].data.push(localMedia.videoWidth * localMedia.videoHeight );
+                    var encBitRateData = {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: "Encoder Bitrate",
+                                fillColor: "rgba(220,220,220,0.2)",
+                                strokeColor: "rgba(220,220,220,1)",
+                                pointColor: "rgba(220,220,220,1)",
+                                pointStrokeColor: "#fff",
+                                pointHighlightFill: "#fff",
+                                pointHighlightStroke: "rgba(220,220,220,1)",
+                                data: []
+                            },
+                            {
+                                label: "Encoder Bitrate Target",
+                                fillColor: "rgba(220,220,220,0.2)",
+                                strokeColor: "rgba(220,220,220,1)",
+                                pointColor: "rgba(220,220,220,1)",
+                                pointStrokeColor: "#fff",
+                                pointHighlightFill: "#fff",
+                                pointHighlightStroke: "rgba(220,220,220,1)",
+                                data: []
+                            }
+                        ]
+                    };
 
-                                    encFrameRateData.labels.push(parseInt(cdata.timer));
-                                    encFrameRateData.datasets[0].data.push(cdata.sender.frameRate);
+                    var encFrameRateData = {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: "Capture FPS",
+                                fillColor: "rgba(120,120,120,0.2)",
+                                strokeColor: "rgba(100,120,120,1)",
+                                pointColor: "rgba(120,120,120,1)",
+                                pointStrokeColor: "#fff",
+                                pointHighlightFill: "#fff",
+                                pointHighlightStroke: "rgba(120,120,120,1)",
+                                data: []
+                            } ,
+                            {
+                                label: "Encoder FPS",
+                                fillColor: "rgba(220,220,220,0.2)",
+                                strokeColor: "rgba(220,220,220,1)",
+                                pointColor: "rgba(220,220,220,1)",
+                                pointStrokeColor: "#fff",
+                                pointHighlightFill: "#fff",
+                                pointHighlightStroke: "rgba(220,220,220,1)",
+                                data: []
+                            }
+                        ]
+                    };
+
+
+                    var encResoloutionData = {
+                        labels: [],
+                        datasets: [
+                            {
+                                label: "Capture Res",
+                                fillColor: "rgba(120,120,120,0.2)",
+                                strokeColor: "rgba(100,120,120,1)",
+                                pointColor: "rgba(120,120,120,1)",
+                                pointStrokeColor: "#fff",
+                                pointHighlightFill: "#fff",
+                                pointHighlightStroke: "rgba(120,120,120,1)",
+                                data: []
+                            } ,
+                            {
+                                label: "Encoder Res",
+                                fillColor: "rgba(220,220,220,0.2)",
+                                strokeColor: "rgba(220,220,220,1)",
+                                pointColor: "rgba(220,220,220,1)",
+                                pointStrokeColor: "#fff",
+                                pointHighlightFill: "#fff",
+                                pointHighlightStroke: "rgba(220,220,220,1)",
+                                data: []
+                            }
+                        ]
+                    };
+
+                    var statCollector = setInterval(function () {
+                        if (stepsRemained === 0) {
+                            --stepsRemained;
+                            if (detectedBrowser == "Chrome")
+                                log("Capturer/Sender/LocalRender/LocalRenderDropped/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate/AvbSent/AvbReceived/TransmitBitrate");
+                            //else if (detectedBrowser == "Firefox")
+                            //     log("PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate");
+
+                        } else if (stepsRemained == -1 * COLLECTION_STEPS) {
+                            --stepsRemained;
+                            get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight + "<br>" +
+                                "Stats finished ";
+                            // Prepare the charts
+                            for (i = 0; i < collectionData.length; ++i) {
+                                cdata = collectionData[i];
+                                if (true) {
+                                    if (detectedBrowser == "Chrome") {
+                                        encBitRateData.labels.push(parseInt(cdata.timer));
+                                        encBitRateData.datasets[0].data.push(cdata.sender.bitRate);
+                                        encBitRateData.datasets[1].data.push(cdata.sender.googTargetEncoderBitRate);
+
+
+                                        encResoloutionData.labels.push(cdata.timer);
+                                        encResoloutionData.datasets[0].data.push(cdata.sender.inputWidth * cdata.sender.inputHeight);
+                                        encResoloutionData.datasets[1].data.push(cdata.sender.width * cdata.sender.height);
+
+
+                                        encFrameRateData.labels.push(parseInt(cdata.timer));
+                                        encFrameRateData.datasets[0].data.push(cdata.sender.inputFrameRate);
+                                        encFrameRateData.datasets[1].data.push(cdata.sender.frameRate);
+                                    } else {
+                                        encBitRateData.labels.push(parseInt(cdata.timer));
+                                        encBitRateData.datasets[0].data.push(cdata.sender.bitRate);
+
+                                        encResoloutionData.labels.push(cdata.timer);
+                                        encResoloutionData.datasets[0].data.push(localMedia.videoWidth * localMedia.videoHeight);
+
+                                        encFrameRateData.labels.push(parseInt(cdata.timer));
+                                        encFrameRateData.datasets[0].data.push(cdata.sender.frameRate);
+                                    }
+
                                 }
 
                             }
+                            var ctx = document.getElementById("chartEncBitRate").getContext("2d");
+                            var myNewChart = new Chart(ctx).Line(encBitRateData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+                            var ctx2 = document.getElementById("chartEncFPS").getContext("2d");
+                            var myNewChart2 = new Chart(ctx2).Line(encFrameRateData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+                            var ctx3 = document.getElementById("chartEncRes").getContext("2d");
+                            var myNewChart3 = new Chart(ctx3).Line(encResoloutionData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
 
+                            sendEventLogs();
                         }
-                        var ctx = document.getElementById("chartEncBitRate").getContext("2d");
-                        var myNewChart = new Chart(ctx).Line(encBitRateData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
-                        var ctx2 = document.getElementById("chartEncFPS").getContext("2d");
-                        var myNewChart2 = new Chart(ctx2).Line(encFrameRateData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
-                        var ctx3 = document.getElementById("chartEncRes").getContext("2d");
-                        var myNewChart3 = new Chart(ctx3).Line(encResoloutionData,{responsive:true, maintainAspectRatio: false, scaleShowLabels : true});
+                        else if (stepsRemained < 0) {
+                            --stepsRemained;
+                            get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight;
+                        } else {
+                            --stepsRemained;
+                            get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight + "<br>" +
+                                "Stats begin in " + stepsRemained + " seconds";
+                        }
 
-                        sendEventLogs();
-                    }
-                    else if (stepsRemained < 0) {
-                        get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight;
-                    } else {
-                        get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight + "<br>" +
-                            "Stats begin in " + stepsRemained + " seconds";
-                    }
-
-                    if (stepsRemained <= 0 && stepsRemained > -1 * COLLECTION_STEPS) {
-                        collectStats(true, collectionData);
-                    }
-                    else
-                        collectStats(false, collectionData);
+                        if (stepsRemained <= 0 && stepsRemained > -1 * COLLECTION_STEPS) {
+                            collectStats(true, collectionData);
+                        }
+                        else
+                            collectStats(false, collectionData);
 
 
-                    --stepsRemained;
-                }, 1000);
+
+                    }, 1000);
+                }
             }
+            window.get("local-streams").appendChild(localMedia);
+            window.get("local-streams").appendChild(status);
         }
-        window.get("local-streams").appendChild(localMedia);
-        window.get("local-streams").appendChild(status);
-    }
 }
 
 
