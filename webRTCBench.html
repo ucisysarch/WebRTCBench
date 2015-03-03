@@ -40,12 +40,12 @@
             <option value="D"> Data </option>
             <option value="VD"> Video+Data </option>
             <option value="AVD"> Video+Audio+Data </option>
-            <option value="BVS"> Broadcast Send (V)  </option>
-            <option value="BVR"> Broadcast Receive (V) </option>
+            <option value="BVS"> Unicast Send (V)  </option>
+            <option value="BVR"> Unicast Receive (V) </option>
          <!--   <option value="TS"> Time Offest Calc </option> -->
         </select>
         <br>
-        <input type="text" id="channel" value="channel">
+        <input type="text" id="channelId" value="channel">
         <br>
         <button id="openChannel" style="float:left">Open Channel</button>
 
@@ -198,11 +198,11 @@
 <script src="js/events.js"> </script>
 <script src="js/Chart.js"></script>
 <script>
-    var channel ;
+    var channelId ;
     var caller, callee;
     var getAudio = false,
             getVideo = false,
-            getData = true; // for time synchronization
+            getData = false ; // for time synchronization
     var receiveVideo = false,
             receiveAudio = false;
     var isCaller = false;
@@ -428,7 +428,7 @@
         }
     };
 
-    get('channel').value = (Math.round(Math.random()*5000));
+    get('channelId').value = (Math.round(Math.random()*5000));
     get('timestamp').value = Date.now();
     // DEALING WITH BUTTON UI
     // On Opening Channel
@@ -444,8 +444,8 @@
         initConnection(isCaller);
         get('joinChannel').disabled = true;
         get('openChannel').disabled = true;
-        get('channel').disabled = true;
-        get('heading').innerHTML = "<h2> "+ get("channel").value + " is active </h2>"
+        get('channelId').disabled = true;
+        get('heading').innerHTML = "<h2> "+ get("channelId").value + " is active </h2>"
         //log("Initialized RTC Multi Connection in " + (time()-time1).toString() + "ms");
         //eventLog(events.TIMING.Init_RTC_Multi_Connection, (time()-time1).toString());
     };
@@ -477,7 +477,7 @@
         var confirm = get('confirmConnection');
         confirm.disabled = false;
         confirm.style.display = "block";
-        channel = initConnection(false)
+        initConnection(false)
     };
     // On Connecting through Channel
     get('confirmConnection').onclick = function(){
@@ -486,11 +486,11 @@
 
             log("Sending Callee arrived at " + time().toString()) ;
             signallingSocket.emit("message",JSON.stringify({
-                channel:channel,
+                channel:get('channelId').value,
                 type: "callee_arrived"
             })) ;
         }
-        get('heading').innerHTML = "<h2> Connected through channel "+ get("channel").value + "</h2>";
+        get('heading').innerHTML = "<h2> Connected through channel "+ get("channelId").value + "</h2>";
         // log("Initialized RTC Multi Connection in " + (time3-time2).toString() + "ms");
         //eventLog(events.TIMING.Init_RTC_Multi_Connection, (time3-time2).toString());
     };

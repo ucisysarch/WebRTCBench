@@ -4,7 +4,7 @@ var dumpBlob ="";
 // Time before video measurements
 var WAITING_STEPS= 1;
 // Video measurement duration
-var COLLECTION_STEPS = 120 ;
+var COLLECTION_STEPS = 70 ;
 
 
 //Google
@@ -330,6 +330,7 @@ var bytesReceived = 0;
 var timer = 0 ;
 var olddbrmean = 0 ;
 var oldebrmean = 0 ;
+var encSamples = 0 ;
 if( detectedBrowser == "Firefox" ) {
 
     function x(stats) {
@@ -504,6 +505,8 @@ if( detectedBrowser == "Firefox" ) {
 
 
                                 newStat.sender.bitRate = res.bitrateMean ;
+
+
                                 newStat.sender.frameRate = res.framerateMean ;
                                 newStat.sender.bytesSent = mozStats.encoderStats.bytesSent ;
 
@@ -524,16 +527,34 @@ if( detectedBrowser == "Firefox" ) {
                        //    ,"l.render ", videoStats.local.renderRate , "r.render " , videoStats.remote.renderRate
                        // ];
 
+
+                        var encBitRate = 0 ;
+                        if( mozStats.encoderStats.bitRateMean > 0 ) {
+                            encSamples += 1 ;
+                            encBitRate = (encSamples) * mozStats.encoderStats.bitRateMean - (encSamples - 1) * oldebrmean ;
+                            oldebrmean = mozStats.encoderStats.bitRateMean ;
+
+                        }
                         newStat.timer = timer ;
                         var result = [ timer ,  " VInpJit" , mozStats.videoInputJitter,  " Decode brm,frm " ,  mozStats.decoderStats.bitRateMean , mozStats.decoderStats.frameRateMean
-                            , "Encode: br,fr,df " , mozStats.encoderStats.bitRateMean, mozStats.encoderStats.frameRateMean,
+                            , "Encode: br,brm,fr,df " , encBitRate, mozStats.encoderStats.bitRateMean, mozStats.encoderStats.frameRateMean,
                             mozStats.encoderStats.droppedFrames
                             ,"l.render ", videoStats.local.renderRate , "r.render " , videoStats.remote.renderRate
                         ];
+
+
+                        newStat.sender.bitRate =  encBitRate;
+                        // TODO is this a bug? really high encoder bitrate for firefox
+
+                        if( encBitRate > 3000000 ){
+                            newStat.sender.bitRate = 3000000;
+                        }
+
+
                         retArr.push( newStat );
 
-                        oldebrmean = mozStats.encoderStats.bitRateMean ;
-                        olddbrmean = mozStats.decoderStats.bitRateMean ;
+
+
 
                         log(result.join(","));
                         dumpBlob += result.join("\0") + "\n";
@@ -998,7 +1019,7 @@ function sendEventLogs(){
 	eventLogs["network-type"]= window.get("network-type").value;
 	eventLogs["operating-system"]= window.get("operating-system").value;
 	eventLogs["browser"]= window.get("browser").value;
-	eventLogs["channel"]= window.get("channel").value;
+	eventLogs["channel"]= window.get("channelId").value;
 	eventLogs["isCaller"]= isCaller;
 	eventLogs["timestamp"]= window.get("timestamp").value;
 	eventLogs["session-type"]= window.get("session-type").value;
@@ -1063,7 +1084,7 @@ function addFiles(files) {
             if (iceEvent.candidate) {
                 signallingSocket.emit("message",
                     JSON.stringify({
-                        channel: channel,
+                        channel: get('channelId').value,
                         type: "new_ice_candidate",
                         candidate: iceEvent.candidate
                     })
@@ -1331,14 +1352,14 @@ function addFiles(files) {
 
         }
         // Open Connection to Signalling Server
-        var signallingServer = '/';
-        var channel = window.get("channel").value;
+        var signallingServer = location.origin ;
+        var channelId = window.get("channelId").value;
         var sender = Math.round(Math.random() * 60535) + 5000;
         eventLogger.verbose(events.Events.CONNECTING_TO_SIGNALLING_SERVER, time());
         signallingSocket = io.connect(signallingServer);
         signallingSocket.on('connect', function () {
             eventLogger.verbose(events.Events.CONNECTED_TO_SIGNALLING_SERVER, time());
-            signallingSocket.emit("channel", channel);
+            signallingSocket.emit("channel", channelId);
         });
         if (caller) {
             signallingSocket.on('message', function (event) {
@@ -1362,14 +1383,12 @@ function addFiles(files) {
 
         if (h264 && (!description.sdp.match(/a=rtpmap:[0-9]+ H264/g))) {
             log("No H264 found in the answer!!!");
-        } else {
-            log("H264 Found in the answer");
         }
 
         peerConnection.setLocalDescription(description, function () {
                 signallingSocket.emit("message",
                     JSON.stringify({
-                        channel: channel,
+                        channel: get('channelId').value,
                         type: "new_description",
                         sdp: description
                     })
@@ -1398,7 +1417,7 @@ function addFiles(files) {
         peerConnection.setLocalDescription(description, function () {
                 signallingSocket.emit("message",
                     JSON.stringify({
-                        channel: channel,
+                        channel: get('channelId').value,
                         type: "new_description",
                         sdp: description
                     })
