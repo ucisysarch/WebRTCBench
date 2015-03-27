@@ -1,5 +1,6 @@
 var dumpBlob ="";
-
+var receivedFileInfo = {};
+var receiveFileBuffer = [];
 
 // Time before video measurements
 var WAITING_STEPS= 1;
@@ -7,19 +8,23 @@ var WAITING_STEPS= 1;
 var COLLECTION_STEPS = 70 ;
 
 
-//Google
 var defaultConstratints = false ;
+
+//Google
 var HD = false ;
 var VGA = true ;
 var QVGA = false ;
-
-var h264 = false ;
 var vp9 = false ;
 
 
+//Moz
+var mozScreenShare = true ;
+var mozFakeVideo = false ;
+var h264 = false ;
+
 // Datachannel ordered transfer
 var dcOrdered = true;
-var mozFakeVideo = false ;
+
 // Dictionary that will contains experiment settings and WebRTC related events
 var eventLogs = {};
 eventLogs["events"] = {};
@@ -30,8 +35,6 @@ var dataChannel;
 * This class collects events and store them into eventLogs dictionary
 * This class collects events and store them into eventLogs dictionary
 */
-var sendBlob = new Blob;
-
 
 
 var eventLogger = {
@@ -1030,22 +1033,48 @@ function sendEventLogs(){
 }
 
 
-function addFiles(files) {
+function sendFile () {
 
-    var f = files[0];
+    var f = get('fileSelector').files[0];
     if (f) {
-        var reader = new FileReader();
-        var blob = new Blob;
-        // Closure to capture the file information.
-        reader.onload = function (file) {
-            if( reader.readyState == FileReader.DONE ) {
-                sendBlob = file.target.result;
-            }
-        };
-        //reader.readAsDataURL(f);
-        reader.readAsArrayBuffer(f);
+        var sendBlob = new Blob;
+        // Send file info name, type, size
+        dataChannel.send(JSON.stringify({message:'File' , name: f.name, size: f.size, type: f.type}));
+        if (detectedBrowser === 'Firefox') {
+            var reader = new FileReader();
+            reader.onload = function (file) {
+                if (reader.readyState == FileReader.DONE) {
+                    sendBlob = file.target.result;
+                    log("Started Sending file at " + time().toString());
+
+                    //TODO out-of-order channel
+                    dataChannel.send(sendBlob);
+                }
+            };
+            //reader.readAsDataURL(f);
+            reader.readAsArrayBuffer(f);
+        }
+        else {
+            var chunkSize = 16384;
+            var sliceFile = function (offset) {
+                var reader = new FileReader();
+                reader.onload = (function () {
+                    return function (e) {
+                        dataChannel.send(e.target.result);
+                        if (f.size > offset + e.target.result.byteLength) {
+                            window.setTimeout(sliceFile, 0, offset + chunkSize);
+                        }
+                    };
+                })(f);
+                var slice = f.slice(offset, offset + chunkSize);
+                reader.readAsArrayBuffer(slice);
+            };
+            sliceFile(0);
+        }
     }
-}
+};
+
+
 
 
 //This method will be called by caller side, and initiate a WebRTC connection
@@ -1076,7 +1105,13 @@ function addFiles(files) {
             if (peerConnection.iceConnectionState == "connected") {
                 eventLogger.info(events.Events.ICE_CONNECTED, time());
             }
+            if (peerConnection.iceConnectionState == "completed") {
+                eventLogger.info(events.Events.ICE_COMPLETED, time());
+            }
+
         };
+
+
 
         // this handler sends ice candidates to other peer
         peerConnection.onicecandidate = function (iceEvent) {
@@ -1259,36 +1294,73 @@ function addFiles(files) {
             //     appendDIV(event.data);
             //     log("Text message received at " + t_msg.toString());
             // };
+            function tryParseJSON (jsonString){
+                try {
+                    var o = JSON.parse(jsonString);
 
+                    // Handle non-exception-throwing cases:
+                    // Neither JSON.parse(false) or JSON.parse(1234) throw errors, hence the type-checking,
+                    // but... JSON.parse(null) returns 'null', and typeof null === "object",
+                    // so we must check for that, too.
+                    if (o && typeof o === "object" && o !== null) {
+                        return o;
+                    }
+                }
+                catch (e) { }
+
+                return false;
+            };
             var onMessage = function (event) {
                 var t_msg = time();
-                var blob = event.data; // Firefox allows sending blobs directly
-                //saveToDisk(blob, 'fake');
+                var blob = event.data;
                 if (typeof blob === "object") {
-                    var blob = new Blob([event.data], {type: "image/png"});
-                    var reader = new FileReader();
-                    reader.onload = function (file) {
-                        if (reader.readyState == FileReader.DONE) {
-                            log("File received at " + time().toString());
-                            //document.getElementById("dataChannelReceive").src = file.target.result;
+
+                    if( detectedBrowser === 'Firefox'){ // Firefox allows sending blobs with no size limit
+                        var blob = new Blob([event.data], {type: receivedFileInfo.type });
+
+                        log("File received at " + time().toString());
+                        console.log("File gotten");
+                        dataChannel.send( "pong " + time());
+                        get('download-file').href =  URL.createObjectURL(blob) ;
+                        get('download-file').download =  receivedFileInfo.name ;
+                    } else { // receive it with multiple chunks
+                        receiveFileBuffer.push(event.data);
+                        receivedFileInfo.receivedBytes += event.data.byteLength;
+                        if (receivedFileInfo.receivedBytes === receivedFileInfo.size) {
+
+
+                            var received = new window.Blob(receiveFileBuffer , {type: receivedFileInfo.type });
+                            get('download-file').href =  URL.createObjectURL(received) ;
+                            get('download-file').download =  receivedFileInfo.name ;
+                            //
+                            receiveFileBuffer = [];
                             console.log("File gotten");
-                            saveToDisk(file.target.result, 'fake');
+                            dataChannel.send( "pong " + time());
                         }
                     }
-                    reader.readAsDataURL(blob);
+
                 }
                 else {
-                    if (blob.toString().indexOf("ping") >= 0) {
-                        dataChannel.send("pong " + time());
-                        //log("ping received at " + t_msg.toString() ) ;
+                    var json = tryParseJSON(blob.toString()) ;
+                    if ( json ){
+                        log( blob.toString() );
+                        if( json.message === 'Ping' ){
+                            dataChannel.send( JSON.stringify( { message:"Pong" , timestamp: time() }) );
+                        } else if (json.message === 'Pong') {
+                            log( blob.toString() + " received at " + json.timestamp );
+                        } else if ( json.message  === 'File') {
+                            //log( blob.toString() + " received at " + json.timestamp );
+                            receivedFileInfo.name = json.name ;
+                            receivedFileInfo.size = json.size;
+                            receivedFileInfo.type = json.type ;
+                            receivedFileInfo.receivedBytes = 0 ;
+                        }
                     }
-                    else if (blob.toString().indexOf("pong") >= 0) {
-                        log(blob.toString() + " received at " + t_msg.toString());
-
-                    } else {
+                    else {
                         log("text received at " + t_msg.toString());
                         appendDIV(event.data);
                     }
+
 
                 }
             };
@@ -1299,12 +1371,8 @@ function addFiles(files) {
                 if (sendEvents && !videoStats && (  (!getAudio && !getVideo) || remoteStreamArrived )) {
                     sendEventLogs();
                 }
-                var sendButton = get('sendbtn');
-                sendButton.onclick = function () {
-                    log("Started Sending file at " + time().toString());
-                    dataChannel.send(sendBlob);
-                };
-
+                get('sendbtn').onclick = sendFile ;
+                get('pingbtn').onclick = function() { dataChannel.send( JSON.stringify({type : 'Ping'}) ); };
             };
             if (caller) {
                 var dataChannelOptions = dcOrdered ? {
@@ -1493,7 +1561,11 @@ function addFiles(files) {
     function getMedia() {
         eventLogger.verbose(events.Events.GETTING_MEDIA, time());
         var video_constraints = !defaultConstratints ? HD ? {optional: [], mandatory: {minHeight: 720, minWidth: 1280}} : VGA ? {optional: [], mandatory: { minFrameRate: 30, maxHeight: 480, maxWidth: 640, minHeight: 480, minWidth: 640}} : {optional: [], mandatory: { minFrameRate: 30, maxHeight: 240, maxWidth: 320}} : true;
+        var moz_video_constraints = {
 
+                width: { min: 1280, max:1280 }
+
+        };
        // if( detectedBrowser == "Firefox" && mozFakeVideo ){
         //    var vwc = window.get("wv");
         //    log(vwc);
@@ -1504,10 +1576,10 @@ function addFiles(files) {
 
         //} else {
             getUserMedia(
-                ( detectedBrowser == "Firefox"  ) ? //Constrainst are not supported by FF yet
+                ( detectedBrowser == "Firefox"  ) ? //(Resolution) is not supported by FF yet
                 {
                     audio: getAudio ? true : false,
-                    video: getVideo ? true : false,
+                    video: getVideo ? moz_video_constraints : false,
                     fake: mozFakeVideo
                 } :
                 {
@@ -1542,9 +1614,6 @@ function addFiles(files) {
             status.id = "localStatus";
 
 
-            //  localMedia.addEventListener('play', function () {
-            //      log("onplay @" + time() );
-            //  }, false);
 
 
             //  localMedia.addEventListener('play', function () {
@@ -1556,10 +1625,10 @@ function addFiles(files) {
             //      log("oncanplay @" + time() );
             //  }, false);
 
+            localMedia.addEventListener('canplaythrough', function () {
+                log("canplaythrough @" + time() );
+            }, false);
 
-            //   localMedia.addEventListener('canplaythrough', function () {
-            //       log("canplaythrough @" + time() );
-            //   }, false);
 
 
             localMedia.play();
