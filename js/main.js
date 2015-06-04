@@ -1029,7 +1029,7 @@ function sendEventLogs(){
     if( videoStats ){
         //eventLogs["videoStats"] = statsArray ;
     }
-	signallingSocket.emit('events',update);
+//	signallingSocket.emit('events',update);
 }
 
 
@@ -1134,6 +1134,8 @@ function sendFile () {
                 eventLogger.info(events.Events.REMOTE_STREAM_ARRIVED, time());
                 remoteStreamArrived = true;
                 var media = document.createElement(receiveAudio && !receiveVideo ? 'audio' : 'video');
+                media.setAttribute("Width", "320");
+                media.setAttribute("Height", "240");
                 media.id = "remoteView0";
                 var status = document.createElement('div');
                 status.id = "rmtStatus";
@@ -1224,6 +1226,7 @@ function sendFile () {
 
                         remoteVideo = get('remoteView0');
                         if (remoteVideo) {
+				//console.log("DEC:"+stepsRemained+"\n");
                             if (stepsRemained === 0) {
                                 --stepsRemained;
                                 if (detectedBrowser == "Chrome")
@@ -1252,6 +1255,7 @@ function sendFile () {
 
 
                                 }
+
                                 var ctx = document.getElementById("chartDecBitRate").getContext("2d");
                                 var brChart = new Chart(ctx).Line(decBitRateData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
                                 var ctx2 = document.getElementById("chartDecFPS").getContext("2d");
@@ -1595,8 +1599,8 @@ function sendFile () {
             eventLogger.verbose(events.Events.LOCAL_MEDIA_CAPTURED, time());
             var localMedia = document.createElement((getAudio && !getVideo) ? 'audio' : 'video');
             if (getVideo) {
-                // localMedia.setAttribute("width", "640");
-                //  localMedia.setAttribute("height", "480");
+                 localMedia.setAttribute("width", "320");
+                  localMedia.setAttribute("height", "240");
             }
             localMedia.id = "localView";
             if (detectedBrowser == "Chrome") {
@@ -1637,7 +1641,7 @@ function sendFile () {
 
             // SENDER STATS
             if (videoStats) {
-                if (receiveVideo == false) {
+                if (receiveVideo === true) {
                     var collectionData = [];
                     var stepsRemained = WAITING_STEPS;
 
@@ -1721,6 +1725,7 @@ function sendFile () {
                     };
 
                     var statCollector = setInterval(function () {
+			//console.log("ENC:"+stepsRemained+"\n");
                         if (stepsRemained === 0) {
                             --stepsRemained;
                             if (detectedBrowser == "Chrome")
@@ -1764,6 +1769,7 @@ function sendFile () {
                                 }
 
                             }
+
                             var ctx = document.getElementById("chartEncBitRate").getContext("2d");
                             var myNewChart = new Chart(ctx).Line(encBitRateData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
                             var ctx2 = document.getElementById("chartEncFPS").getContext("2d");
