@@ -155,7 +155,8 @@
     <textarea id = "console_log" readonly style="width: 100%; min-height:200px;resize: none"> </textarea>
     <button id="console-clear" onclick = "clearConsole()"> Clear Console </button>
     <button id="download-results" onclick = "download()"> Download Results </button>
-    <a id="download-file" > Download File </a>
+
+    <button id="download-analysis-data" onclick = "downloadVideoQualityData()"> Download Video Analysis Data </button>
 
 </div>
 
@@ -197,9 +198,13 @@
 </div>
 
 
+<!-- Note : This canvas is to store video data, do not touch! -->
+<canvas id="data-canvas" width="320" height="240" hidden></canvas>
+
+
 
 <script src="js/events.js"> </script>
-<script src="js/Chart.js"></script>
+<script src="js/Chart.js"> </script>
 <script>
     var channelId ;
     var caller, callee;
@@ -438,6 +443,9 @@
         get('heading').innerHTML = "<h2> "+ get("channelId").value + " is active </h2>"
         //log("Initialized RTC Multi Connection in " + (time()-time1).toString() + "ms");
         //eventLog(events.TIMING.Init_RTC_Multi_Connection, (time()-time1).toString());
+		setTimeout(function () {
+            senderInitVideoQualityMeasure();
+        }, 10000);
     };
 
     // On Storing information
@@ -483,6 +491,9 @@
         get('heading').innerHTML = "<h2> Connected through channel "+ get("channelId").value + "</h2>";
         // log("Initialized RTC Multi Connection in " + (time3-time2).toString() + "ms");
         //eventLog(events.TIMING.Init_RTC_Multi_Connection, (time3-time2).toString());
+		setTimeout(function () {
+            receiverInitVideoQualityMeasure();
+        }, 5000);
     };
 
     //DEALING WITH TEXT CHAT UI
@@ -517,6 +528,7 @@
         this.focus();
     };
 </script>
+<script src="js/stat.js"> </script>
 </body>
 </html>
 

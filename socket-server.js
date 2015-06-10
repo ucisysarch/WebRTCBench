@@ -191,3 +191,7 @@ app.get('/js/Chart.js', function(req,res){
     res.sendFile(__dirname + '/js/Chart.js');
 });
 
+app.get('/js/stat.js', function(req,res){
+    res.sendFile(__dirname + '/js/stat.js');
+});
+

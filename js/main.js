@@ -1564,7 +1564,7 @@ function sendFile () {
 // Get User Media
     function getMedia() {
         eventLogger.verbose(events.Events.GETTING_MEDIA, time());
-        var video_constraints = !defaultConstratints ? HD ? {optional: [], mandatory: {minHeight: 720, minWidth: 1280}} : VGA ? {optional: [], mandatory: { minFrameRate: 30, maxHeight: 480, maxWidth: 640, minHeight: 480, minWidth: 640}} : {optional: [], mandatory: { minFrameRate: 30, maxHeight: 240, maxWidth: 320}} : true;
+        var video_constraints = !defaultConstratints ? HD ? {optional: [], mandatory: {minHeight: 720, minWidth: 1280}} : VGA ? {optional: [], mandatory: { minFrameRate: 30, maxHeight: 240, maxWidth: 320, minHeight: 240, minWidth: 320}} : {optional: [], mandatory: { minFrameRate: 30, maxHeight: 240, maxWidth: 320}} : true;
         var moz_video_constraints = {
 
                 width: { min: 1280, max:1280 }
