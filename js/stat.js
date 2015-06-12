@@ -20,6 +20,10 @@ var tagHeight = 20;
 var vrdTimeID = 0;
 var vtdTimeID = 0;
 
+var jChart = null;
+var lChart = null;
+var qChart = null;
+
 /*
  * doSave is a function 
  * which could help you download your file
@@ -264,15 +268,171 @@ function downloadVideoQualityData() {
 	clearTimeout(vtdTimeID);
 	if(isCaller === true) {
 		var filename = "senderTagData.txt";
-		doSave(videoTagData, "text/latex", filename); 
+		//doSave(videoTagData, "text/latex", filename);
+		var vtd = videoTagData.join(",");
+		$.ajax({
+			data: {"vtd" : vtd},
+			url: '/sender',
+			type: 'post',
+			cache: false,
+			timeout: 10000,
+			success: function(data){
+				console.log("data transmit success");
+			},
+			error: function(jqXHR, textStatus, errorThrown){
+				alert('error : ' + textStatus + " " + errorThrown);
+			}
+		});
 	} else {
 		var filename1 = "receiverTagData.txt";
 		var filename2 = "receiverVideoRawData.txt";
-		doSave(videoRawData, "text/latex", filename2);
+		
+		/*doSave(videoRawData, "text/latex", filename2);
 		setTimeout(function () {
-            doSave(videoTagData, "text/latex", filename1);
-        }, 1000);
+			doSave(videoTagData, "text/latex", filename1);
+		}, 1000); */
+		var vtd = videoTagData.join(",");
+		var vrd = videoRawData.join(",");
+		$.ajax({
+			data: {"vtd" : vtd, "vrd" : vrd},
+			url: '/receiver',
+			type: 'post',
+			cache: false,
+			timeout: 10000,
+			success: function(data){
+				console.log("data transmit success");
+			},
+			error: function(jqXHR, textStatus, errorThrown){
+				alert('error : ' + textStatus + " " + errorThrown);
+			}
+		});
 	}
 }
 
+function getJitter() {
+	$.ajax({
+		data: {"blank" : " "},
+		url: '/jitter',
+		type: 'post',
+		cache: false,
+		timeout: 10000,
+		success: function(data){
+			var jitter = data.jitter;
+			var ctx = document.getElementById("chartJitter").getContext("2d");
+			var jitterData = { labels: [], datasets: [ {
+            	label: "My First dataset",
+            	fillColor: "rgba(220,220,220,0.2)",
+            	strokeColor: "rgba(220,220,220,1)",
+            	pointColor: "rgba(220,220,220,1)",
+            	pointStrokeColor: "#fff",
+            	pointHighlightFill: "#fff",
+            	pointHighlightStroke: "rgba(220,220,220,1)",
+            	data: []
+        	}]};
+			jitter = jitter.split("\n");
+			var fnum = $("#jnum").val();
+			fnum = parseInt(fnum);
+			var threshold = $("#jthreshold").val();
+			threshold = parseFloat(threshold);
+			for(var i = 0;i < jitter.length && i < fnum;i++) {
+				if(jitter[i] > threshold) continue;
+				jitterData.labels.push(i);
+				jitterData.datasets[0].data.push(jitter[i]);
+			}
+			if(jChart != null) jChart.destroy();
+            jChart = new Chart(ctx).Line(jitterData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+		},
+		error: function(jqXHR, textStatus, errorThrown){
+			alert('error : ' + textStatus + " " + errorThrown);
+		}
+	});
+}
+
+
+function getLatency() {
+	$.ajax({
+		data: {"blank" : " "},
+		url: '/latency',
+		type: 'post',
+		cache: false,
+		timeout: 10000,
+		success: function(data){
+			var latency = data.latency;
+			var ctx = document.getElementById("chartLatency").getContext("2d");
+			var latencyData = { labels: [], datasets: [ {
+            	label: "My First dataset",
+            	fillColor: "rgba(220,220,220,0.2)",
+            	strokeColor: "rgba(220,220,220,1)",
+            	pointColor: "rgba(220,220,220,1)",
+            	pointStrokeColor: "#fff",
+            	pointHighlightFill: "#fff",
+            	pointHighlightStroke: "rgba(220,220,220,1)",
+            	data: []
+        	}]};
+			latency = latency.split("\n");
+			var fnum = $("#lnum").val();
+			fnum = parseInt(fnum);
+			var threshold = $("#lthreshold").val();
+			threshold = parseFloat(threshold);
+			for(var i = 0;i < latency.length && i < fnum;i++) {
+				if(latency[i] > threshold) continue;
+				latencyData.labels.push(i);
+				latencyData.datasets[0].data.push(latency[i]);
+			}
+			if(lChart != null) lChart.destroy();
+            lChart = new Chart(ctx).Line(latencyData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+		},
+		error: function(jqXHR, textStatus, errorThrown){
+			alert('error : ' + textStatus + " " + errorThrown);
+		}
+	});
+}
+
+function getQuality() {
+	$.ajax({
+		data: {"blank" : " "},
+		url: '/quality',
+		type: 'post',
+		cache: false,
+		timeout: 10000,
+		success: function(data){
+			var quality = data.quality;
+			var ctx = document.getElementById("chartQuality").getContext("2d");
+			var qualityData = { labels: [], datasets: [ {
+            		label: "PSNR",
+            		fillColor: "rgba(220,220,220,0.2)",
+            		strokeColor: "rgba(220,220,220,1)",
+            		pointColor: "rgba(220,220,220,1)",
+            		pointStrokeColor: "#fff",
+            		pointHighlightFill: "#fff",
+            		pointHighlightStroke: "rgba(220,220,220,1)",
+            		data: []
+				},
+				{
+					label: "SSIM",
+            		fillColor: "rgba(151,187,205,0.2)",
+            		strokeColor: "rgba(151,187,205,1)",
+            		pointColor: "rgba(151,187,205,1)",
+            		pointStrokeColor: "#fff",
+            		pointHighlightFill: "#fff",
+            		pointHighlightStroke: "rgba(151,187,205,1)",
+            		data: []
+				}
+			]};
+			quality = quality.split("\n");
+			var fnum = $("#qnum").val();
+			fnum = parseInt(fnum);
+			for(var i = 0;i < quality.length && i < 2*fnum;i += 2) {
+				qualityData.labels.push(i/2);
+				qualityData.datasets[0].data.push(quality[i]);
+				qualityData.datasets[1].data.push(quality[i+1]);
+			}
+			if(qChart != null) qChart.destroy();
+            qChart = new Chart(ctx).Line(qualityData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+		},
+		error: function(jqXHR, textStatus, errorThrown){
+			alert('error : ' + textStatus + " " + errorThrown);
+		}
+	});
+}
 

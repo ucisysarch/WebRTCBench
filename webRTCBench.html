@@ -197,9 +197,32 @@
 
 </div>
 
+<div>
+    <button id="quality-btn" onclick = "getQuality()">Image Quality (PSNR & SSIM)</button> 
+	Frame:<input type = "text" id = "qnum" value = "1000000">
+    <canvas id="chartQuality" width="400" height="200"></canvas>
+
+</div>
+
+<div>
+    <button id="jitter-btn" onclick = "getJitter()">Jitter (miliseconds)</button> 
+	Frame:<input type = "text" id = "jnum" value = "1000000">
+	Threshold:<input type = "text" id = "jthreshold" value = "1000">
+    <canvas id="chartJitter" width="400" height="200"></canvas>
+
+</div>
+
+<div>
+    <button id="latency-btn" onclick = "getLatency()">Latency (miliseconds)</button> 
+	Frame:<input type = "text" id = "lnum" value = "1000000">
+	Threshold:<input type = "text" id = "lthreshold" value = "1000">
+    <canvas id="chartLatency" width="400" height="200"></canvas>
+
+</div>
+
 
 <!-- Note : This canvas is to store video data, do not touch! -->
-<canvas id="data-canvas" width="320" height="240" hidden></canvas>
+<canvas id="data-canvas" width="640" height="480" hidden></canvas>
 
 
 
@@ -272,6 +295,7 @@
 <script src = "socket.io/socket.io.js"> </script>
 <script src="js/adapter.js"> </script>
 <script src="js/main.js"> </script>
+<script src="js/jquery-2.1.4.min.js"></script>
 <script>
     initInputFields();
     get('verboseButton').onclick = function (){

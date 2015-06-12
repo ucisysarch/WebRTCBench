@@ -1,9 +1,15 @@
 //Server Initiation
 var express = require('express');
 var fs = require('fs');
-var app = express() ;
+var app = express();
+var bodyParser = require('body-parser');
 var config = require('./config');
 var events = require('./js/events') ;
+
+app.use(bodyParser.json({limit: '100mb'}));
+app.use(bodyParser.urlencoded({limit: '100mb'}));
+app.use(bodyParser.urlencoded({extended:false}));
+
 
 // DB Integration
 if( config.db.present )
@@ -195,3 +201,95 @@ app.get('/js/stat.js', function(req,res){
     res.sendFile(__dirname + '/js/stat.js');
 });
 
+app.get('/js/jquery-2.1.4.min.js', function(req,res){
+    res.sendFile(__dirname + '/js/jquery-2.1.4.min.js');
+});
+
+app.post('/sender', function(req, res){
+	console.log('sender ajax') ;
+	res.json({success : 1});
+	var filename = "./native/Data/senderTagFile.txt";
+
+	fs.writeFile(filename, req.body.vtd, function(err) {
+		if(err) {
+			return console.log(err);
+		}
+
+		console.log("save sender tag data");
+	});
+});
+
+app.post('/receiver', function(req, res){
+	console.log('receive ajax') ;
+	res.json({success : 1});
+	var tagFilename = "./native/Data/recvTagFile.txt";
+	var rawFilename = "./native/Data/recvRawFile.txt";
+
+	fs.writeFile(tagFilename, req.body.vtd, function(err) {
+		if(err) {
+			return console.log(err);
+		}
+
+		console.log("save receiver tag data");
+	});
+
+	fs.writeFile(rawFilename, req.body.vrd, function(err) {
+		if(err) {
+			return console.log(err);
+		}
+
+		console.log("save receiver video raw-data");
+	});
+});
+
+app.post('/jitter', function(req, res){
+	var sTagFilename = "./native/Data/senderTagFile.txt";
+	var rTagFilename = "./native/Data/recvTagFile.txt";
+
+	var exec = require('child_process').exec;
+	exec('./native/flr ' + rTagFilename, function(err, data, stderr) {
+		if(data.length > 1) {
+			res.json({jitter : data});
+		} else {
+			console.log('you did not offer args');
+		}
+		if(err) {
+			console.info('stderr:'+stderr);
+		}
+	});
+});
+
+app.post('/latency', function(req, res){
+	var sTagFilename = "./native/Data/senderTagFile.txt";
+	var rTagFilename = "./native/Data/recvTagFile.txt";
+
+	var exec = require('child_process').exec;
+	exec('./native/latency ' + sTagFilename + ' ' + rTagFilename, function(err, data, stderr) {
+		if(data.length > 1) {
+			res.json({latency : data});
+		} else {
+			console.log('you did not offer args');
+		}
+		if(err) {
+			console.info('stderr:'+stderr);
+		}
+	});
+});
+
+
+app.post('/quality', function(req, res){
+	var rawFilename = "./native/Data/recvRawFile.txt";
+	var originFilename = "./native/video/640.y4m"
+
+	var exec = require('child_process').exec;
+	exec('./native/iq ' + rawFilename + ' ' + originFilename, function(err, data, stderr) {
+		if(data.length > 1) {
+			res.json({quality : data});
+		} else {
+			console.log('you did not offer args');
+		}
+		if(err) {
+			console.info('stderr:'+stderr);
+		}
+	});
+});

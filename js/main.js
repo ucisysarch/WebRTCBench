@@ -1134,8 +1134,8 @@ function sendFile () {
                 eventLogger.info(events.Events.REMOTE_STREAM_ARRIVED, time());
                 remoteStreamArrived = true;
                 var media = document.createElement(receiveAudio && !receiveVideo ? 'audio' : 'video');
-                media.setAttribute("Width", "320");
-                media.setAttribute("Height", "240");
+                media.setAttribute("Width", "640");
+                media.setAttribute("Height", "480");
                 media.id = "remoteView0";
                 var status = document.createElement('div');
                 status.id = "rmtStatus";
@@ -1564,7 +1564,7 @@ function sendFile () {
 // Get User Media
     function getMedia() {
         eventLogger.verbose(events.Events.GETTING_MEDIA, time());
-        var video_constraints = !defaultConstratints ? HD ? {optional: [], mandatory: {minHeight: 720, minWidth: 1280}} : VGA ? {optional: [], mandatory: { minFrameRate: 30, maxHeight: 240, maxWidth: 320, minHeight: 240, minWidth: 320}} : {optional: [], mandatory: { minFrameRate: 30, maxHeight: 240, maxWidth: 320}} : true;
+        var video_constraints = !defaultConstratints ? HD ? {optional: [], mandatory: {minHeight: 720, minWidth: 1280}} : VGA ? {optional: [], mandatory: { minFrameRate: 30, maxHeight: 480, maxWidth: 640, minHeight: 480, minWidth: 640}} : {optional: [], mandatory: { minFrameRate: 30, maxHeight: 240, maxWidth: 320}} : true;
         var moz_video_constraints = {
 
                 width: { min: 1280, max:1280 }
@@ -1599,8 +1599,8 @@ function sendFile () {
             eventLogger.verbose(events.Events.LOCAL_MEDIA_CAPTURED, time());
             var localMedia = document.createElement((getAudio && !getVideo) ? 'audio' : 'video');
             if (getVideo) {
-                 localMedia.setAttribute("width", "320");
-                  localMedia.setAttribute("height", "240");
+                 localMedia.setAttribute("width", "640");
+                  localMedia.setAttribute("height", "480");
             }
             localMedia.id = "localView";
             if (detectedBrowser == "Chrome") {
