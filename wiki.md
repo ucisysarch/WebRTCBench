@@ -13,11 +13,10 @@
 * [optional] libtbb2 libtbb-dev
 * [optional] libdc1394 2.x
 * [optional] libjpeg-dev, libpng-dev, libtiff-dev, libjasper-dev, libdc1394-22-dev
-
 	sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev
 
 ### Get OpenCV source
-In dir you like, run command 
+In dir you like, run command
 	wget http://sourceforge.net/projects/opencvlibrary/files/opencv-unix/2.4.9/opencv-2.4.9.zip
 
 ### Build OpenCV
@@ -47,7 +46,6 @@ If you see the picture ![pic](./opencv.png), then OpenCv is installed successful
 
 
 ##CONFIGURE NODE
-
 First, in dir WebRTCBench
 	cd native
 	make
