@@ -69,5 +69,5 @@ Because we now use **node4.x** which is different from versions before, so run
 
 If everything is OK. You can run 
 
-	sudo node socket-server
+	sudo node socket-server.js
 (because we set default port 80 so root is required).Sometimes you may encounter **caught exception: Error: listen EACCES**, because you run other services on port 80, please stop it to run node.
