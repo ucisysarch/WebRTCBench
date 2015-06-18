@@ -62,8 +62,8 @@ int main(int argc, char *argv[])
 
 	int v(0);
 	unsigned int r, g, b;
-	int width = 176;
-	int height = 144;
+	int width(640);
+	int height(480);
 	
 	char c;
 	svm.load( "./native/ml/SVM_DATA.xml" );
@@ -78,7 +78,8 @@ int main(int argc, char *argv[])
 		originVideo >> frameReference;
 		if(frameReference.empty()) 
 			break;
-
+		width = frameReference.cols;
+		height = frameReference.rows;
 		Mat ROI;
 		int framenum(0);
 		for(int k = 0;k < ND;k++)

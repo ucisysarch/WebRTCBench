@@ -9,7 +9,7 @@ var datacanvas = document.getElementById("data-canvas");
 var hiddenctx = datacanvas.getContext("2d");
 
 var messages = "";
-var repeatInterval = 1000; // 2000 ms == 2 seconds
+var repeatInterval = 250; // 2000 ms == 2 seconds
 var repeatTagInterval = 5; // 2000 ms == 2 seconds
 var videoRawData = new Array(); //store data
 var videoTagData = new Array(); //store data
@@ -23,6 +23,8 @@ var vtdTimeID = 0;
 var jChart = null;
 var lChart = null;
 var qChart = null;
+var qChart2 = null;
+var qChart3 = null;
 
 /*
  * doSave is a function 
@@ -398,7 +400,9 @@ function getQuality() {
 		success: function(data){
 			var quality = data.quality;
 			var ctx = document.getElementById("chartQuality").getContext("2d");
-			var qualityData = { labels: [], datasets: [ {
+			var ctx2 = document.getElementById("chartQuality2").getContext("2d");
+			var ctx3 = document.getElementById("chartQuality3").getContext("2d");
+			var psnrData = { labels: [], datasets: [ {
             		label: "PSNR",
             		fillColor: "rgba(220,220,220,0.2)",
             		strokeColor: "rgba(220,220,220,1)",
@@ -407,28 +411,47 @@ function getQuality() {
             		pointHighlightFill: "#fff",
             		pointHighlightStroke: "rgba(220,220,220,1)",
             		data: []
-				},
-				{
-					label: "SSIM",
-            		fillColor: "rgba(151,187,205,0.2)",
-            		strokeColor: "rgba(151,187,205,1)",
-            		pointColor: "rgba(151,187,205,1)",
+				}]};
+
+			var ssimData = { labels: [], datasets: [ {
+            		label: "SSIM",
+            		fillColor: "rgba(220,220,220,0.2)",
+            		strokeColor: "rgba(220,220,220,1)",
+            		pointColor: "rgba(220,220,220,1)",
             		pointStrokeColor: "#fff",
             		pointHighlightFill: "#fff",
-            		pointHighlightStroke: "rgba(151,187,205,1)",
+            		pointHighlightStroke: "rgba(220,220,220,1)",
             		data: []
-				}
-			]};
+				}]};
+
+			var psData = { labels: [], datasets: [ {
+            		label: "SSIM&PSNR",
+            		fillColor: "rgba(220,220,220,0.2)",
+            		strokeColor: "rgba(220,220,220,1)",
+            		pointColor: "rgba(220,220,220,1)",
+            		pointStrokeColor: "#fff",
+            		pointHighlightFill: "#fff",
+            		pointHighlightStroke: "rgba(220,220,220,1)",
+            		data: []
+				}]};
 			quality = quality.split("\n");
+			console.log(quality);
 			var fnum = $("#qnum").val();
 			fnum = parseInt(fnum);
-			for(var i = 0;i < quality.length && i < 2*fnum;i += 2) {
-				qualityData.labels.push(i/2);
-				qualityData.datasets[0].data.push(quality[i]);
-				qualityData.datasets[1].data.push(quality[i+1]);
+			for(var i = 0;i < quality.length-1 && i < 2*fnum;i += 2) {
+				psnrData.labels.push(i/2);
+				ssimData.labels.push(i/2);
+				psnrData.datasets[0].data.push(quality[i]);
+				ssimData.datasets[0].data.push(quality[i+1]);
+				psData.labels.push(quality[i+1]);
+				psData.datasets[0].data.push(quality[i]);
 			}
 			if(qChart != null) qChart.destroy();
-            qChart = new Chart(ctx).Line(qualityData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+			if(qChart2 != null) qChart2.destroy();
+			if(qChart3 != null) qChart3.destroy();
+            qChart = new Chart(ctx).Line(psnrData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+            qChart2 = new Chart(ctx2).Line(ssimData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
+            qChart3 = new Chart(ctx3).Line(psData, {responsive: true, maintainAspectRatio: false, scaleShowLabels: true});
 		},
 		error: function(jqXHR, textStatus, errorThrown){
 			alert('error : ' + textStatus + " " + errorThrown);
