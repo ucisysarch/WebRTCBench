@@ -75,4 +75,4 @@ If everything is OK. You can run
 ##Y4m Input
 Run command like this:
 
-    C:\Users\zhenchao>"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --use-fake-device-for-media-stream --use-file-for-fake-video-capture=C:\Users\zhenchao\Downloads\640.y4m
+    "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --use-fake-device-for-media-stream --use-file-for-fake-video-capture=C:\Users\zhenchao\Downloads\640.y4m
