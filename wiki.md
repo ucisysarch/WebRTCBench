@@ -14,7 +14,7 @@
 * [optional] libdc1394 2.x
 * [optional] libjpeg-dev, libpng-dev, libtiff-dev, libjasper-dev, libdc1394-22-dev
 
-		sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev
+    	sudo apt-get install cmake git libgtk2.0-dev pkg-config libavcodec-dev libavformat-dev libswscale-dev
 
 ### Get OpenCV source
 In dir you like, run command 
@@ -97,3 +97,7 @@ If everything is OK. You can run in dir **WebRTCBench**
 (because we set default port 80 so root is required).Sometimes you may encounter **caught exception: Error: listen EACCES**, because you run other services on port 80, please stop it to run node.
 
 
+##Y4m Input
+Run command like this:
+
+    "C:\Program Files (x86)\Google\Chrome\Application\chrome.exe" --use-fake-device-for-media-stream --use-file-for-fake-video-capture=C:\Users\zhenchao\Downloads\640.y4m
