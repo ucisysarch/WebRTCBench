@@ -1,7 +1,7 @@
 # STEP BY STEP
 ***
 
-##INSTALL OPENCV2.x
+##INSTALL OPENCV3.0
 
 ### Required Packages
 * GCC 4.4.x or later
@@ -19,13 +19,13 @@
 ### Get OpenCV source
 In dir you like, run command 
 		
-	wget http://sourceforge.net/projects/opencvlibrary/files/opencv-unix/2.4.9/opencv-2.4.9.zip
+	wget http://sourceforge.net/projects/opencvlibrary/files/opencv-unix/3.0.0/opencv-3.0.0.zip
 
 ### Build OpenCV
 In the same dir, run command
 	
-	unzip opencv-2.4.9.zip
-	cd opencv-2.4.9
+	unzip opencv-3.0.0.zip
+	cd opencv-3.0.0
 	cmake .
 	make
 	sudo make install
@@ -54,6 +54,30 @@ And add
 If you see the picture ![pic](./opencv.png), then OpenCv is installed successfully.
 
 
+##TIME SYNCHRONIZATION
+
+First, install ntp
+
+	sudo apt-get install ntp
+
+Then, modify configuration
+
+	sudo vim /etc/ntp.conf
+
+Add the following to beginning of file
+
+	server 127.127.1.0
+	fudge 127.127.1.0 stratum 8
+
+Next run command
+
+	sudo /etc/init.d/ntp restart
+
+Clients could adjust time with you
+
+	sudo ntpdate *ip_address*
+
+
 ##CONFIGURE NODE
 
 First, in dir WebRTCBench
@@ -67,7 +91,9 @@ Because we now use **node4.x** which is different from versions before, so run
 
 	npm install body-parser
 
-If everything is OK. You can run 
+If everything is OK. You can run in dir **WebRTCBench**
 
 	sudo node socket-server.js
 (because we set default port 80 so root is required).Sometimes you may encounter **caught exception: Error: listen EACCES**, because you run other services on port 80, please stop it to run node.
+
+
