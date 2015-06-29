@@ -7,7 +7,7 @@ var WAITING_STEPS= 1;
 // Video measurement duration
 var COLLECTION_STEPS = 70 ;
 
-
+var videostatCollector;
 var defaultConstratints = false ;
 
 //Google
@@ -1101,12 +1101,19 @@ function sendFile () {
         peerConnection = new RTCPeerConnection(null, options);//server, options);
         eventLogger.verbose(events.Events.PC_CREATED, time());
         peerConnection.oniceconnectionstatechange = function (ice_state) {
-            log(peerConnection.iceGatheringState + " " + peerConnection.iceConnectionState);
+
+			if(peerConnection == null) return;
+
+            //log(peerConnection.iceGatheringState + " " + peerConnection.iceConnectionState);
             if (peerConnection.iceConnectionState == "connected") {
                 eventLogger.info(events.Events.ICE_CONNECTED, time());
             }
             if (peerConnection.iceConnectionState == "completed") {
                 eventLogger.info(events.Events.ICE_COMPLETED, time());
+            }
+			if (peerConnection.iceConnectionState == "disconnected") {
+				eventLogger.info(events.Events.ICE_COMPLETED, time());
+                downloadVideoQualityData();
             }
 
         };
@@ -1221,7 +1228,7 @@ function sendFile () {
 
                     var collectionData = [ ];
                     var stepsRemained = WAITING_STEPS;
-                    var statCollector = setInterval(function () {
+                    videostatCollector = setInterval(function () {
 
 
                         remoteVideo = get('remoteView0');

@@ -9,7 +9,7 @@ var datacanvas = document.getElementById("data-canvas");
 var hiddenctx = datacanvas.getContext("2d");
 
 var messages = "";
-var repeatInterval = 250; // 2000 ms == 2 seconds
+var repeatInterval = 1000; // 2000 ms == 2 seconds
 var repeatTagInterval = 5; // 2000 ms == 2 seconds
 var videoRawData = new Array(); //store data
 var videoTagData = new Array(); //store data
@@ -268,6 +268,13 @@ function myGetStats(peer, callback) {
 function downloadVideoQualityData() {
 	clearTimeout(vrdTimeID);
 	clearTimeout(vtdTimeID);
+	if(peerConnection != null)
+	{
+		peerConnection.getLocalStreams()[0].stop();
+		peerConnection.close();
+		peerConnection = null;
+		clearInterval(videostatCollector);
+	}
 	if(isCaller === true) {
 		var filename = "senderTagData.txt";
 		//doSave(videoTagData, "text/latex", filename);
