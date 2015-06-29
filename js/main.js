@@ -7,7 +7,6 @@ var WAITING_STEPS= 1;
 // Video measurement duration
 var COLLECTION_STEPS = 70 ;
 
-var videostatCollector;
 var defaultConstratints = false ;
 
 //Google
@@ -1228,9 +1227,10 @@ function sendFile () {
 
                     var collectionData = [ ];
                     var stepsRemained = WAITING_STEPS;
-                    videostatCollector = setInterval(function () {
+                    var videostatCollector = setInterval(function () {
 
-
+						if(peerConnection === null)clearInterval(videostatCollector);
+						
                         remoteVideo = get('remoteView0');
                         if (remoteVideo) {
 				//console.log("DEC:"+stepsRemained+"\n");
@@ -1240,7 +1240,7 @@ function sendFile () {
                                     log("Capturer/Sender/LocalRender/LocalRenderDropped/Receiver/Decoder/Render/RenderDroppedFrames/TragetEncoderBitrate/ActualEncoderBitrate/PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate/AvbSent/AvbReceived/TransmitBitrate");
                                 //else if ( detectedBrowser == "Firefox")
                                 //    log("PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate");
-                            } else if (stepsRemained == -1 * COLLECTION_STEPS) {
+                            } else if (stepsRemained == -1 * COLLECTION_STEPS || peerConnection === null) {
                                 --stepsRemained;
                                 get("rmtStatus").innerHTML = remoteVideo.videoWidth + "x" + remoteVideo.videoHeight + "<br>" +
                                     "Stats finished ";
@@ -1667,12 +1667,12 @@ function sendFile () {
                             },
                             {
                                 label: "Encoder Bitrate Target",
-                                fillColor: "rgba(220,220,220,0.2)",
-                                strokeColor: "rgba(220,220,220,1)",
-                                pointColor: "rgba(220,220,220,1)",
+                                fillColor: "rgba(151,187,205,0.2)",
+                                strokeColor: "rgba(151,187,205,1)",
+                                pointColor: "rgba(151,187,205,1)",
                                 pointStrokeColor: "#fff",
                                 pointHighlightFill: "#fff",
-                                pointHighlightStroke: "rgba(220,220,220,1)",
+                                pointHighlightStroke: "rgba(151,187,205,1)",
                                 data: []
                             }
                         ]
@@ -1732,6 +1732,7 @@ function sendFile () {
                     };
 
                     var statCollector = setInterval(function () {
+						if(peerConnection === null)clearInterval(statCollector);
 			//console.log("ENC:"+stepsRemained+"\n");
                         if (stepsRemained === 0) {
                             --stepsRemained;
@@ -1740,7 +1741,7 @@ function sendFile () {
                             //else if (detectedBrowser == "Firefox")
                             //     log("PacketsSent/PacketsReceived/PacketLoss/Txbitrate/RxBitrate");
 
-                        } else if (stepsRemained == -1 * COLLECTION_STEPS) {
+                        } else if (stepsRemained == -1 * COLLECTION_STEPS || peerConnection === null) {
                             --stepsRemained;
                             get("localStatus").innerHTML = localMedia.videoWidth + "x" + localMedia.videoHeight + "<br>" +
                                 "Stats finished ";

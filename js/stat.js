@@ -11,6 +11,7 @@ var hiddenctx = datacanvas.getContext("2d");
 var messages = "";
 var repeatInterval = 1000; // 2000 ms == 2 seconds
 var repeatTagInterval = 5; // 2000 ms == 2 seconds
+var TestTime = 20000;
 var videoRawData = new Array(); //store data
 var videoTagData = new Array(); //store data
 
@@ -125,13 +126,16 @@ function senderInitVideoQualityMeasure() {
 	video1 = document.getElementById("remoteView0");
 	video2 = document.getElementById("localView");
 
-	if(video1 === null)
+	if(video1 === null || video2 == null)
 	{
 		setTimeout(function () {
             senderInitVideoQualityMeasure();
-        }, 5000);
+        }, 2000);
 	} else {
 		SaveVideoTagData();
+		setTimeout(function () {
+            downloadVideoQualityData();
+        }, TestTime);
 	}
 }
 
@@ -273,7 +277,6 @@ function downloadVideoQualityData() {
 		peerConnection.getLocalStreams()[0].stop();
 		peerConnection.close();
 		peerConnection = null;
-		clearInterval(videostatCollector);
 	}
 	if(isCaller === true) {
 		var filename = "senderTagData.txt";
@@ -324,7 +327,7 @@ function getJitter() {
 		url: '/jitter',
 		type: 'post',
 		cache: false,
-		timeout: 10000,
+		timeout: 20000,
 		success: function(data){
 			var jitter = data.jitter;
 			var ctx = document.getElementById("chartJitter").getContext("2d");
@@ -364,7 +367,7 @@ function getLatency() {
 		url: '/latency',
 		type: 'post',
 		cache: false,
-		timeout: 10000,
+		timeout: 20000,
 		success: function(data){
 			var latency = data.latency;
 			var ctx = document.getElementById("chartLatency").getContext("2d");
@@ -403,7 +406,7 @@ function getQuality() {
 		url: '/quality',
 		type: 'post',
 		cache: false,
-		timeout: 10000,
+		timeout: 20000,
 		success: function(data){
 			var quality = data.quality;
 			var ctx = document.getElementById("chartQuality").getContext("2d");
