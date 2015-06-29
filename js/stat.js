@@ -11,7 +11,7 @@ var hiddenctx = datacanvas.getContext("2d");
 var messages = "";
 var repeatInterval = 1000; // 2000 ms == 2 seconds
 var repeatTagInterval = 5; // 2000 ms == 2 seconds
-var TestTime = 20000;
+var TestTime = 10000;
 var videoRawData = new Array(); //store data
 var videoTagData = new Array(); //store data
 
@@ -287,9 +287,10 @@ function downloadVideoQualityData() {
 			url: '/sender',
 			type: 'post',
 			cache: false,
-			timeout: 10000,
+			timeout: 40000,
 			success: function(data){
 				console.log("data transmit success");
+                                alert("Data download to server completed.");
 			},
 			error: function(jqXHR, textStatus, errorThrown){
 				alert('error : ' + textStatus + " " + errorThrown);
@@ -310,9 +311,10 @@ function downloadVideoQualityData() {
 			url: '/receiver',
 			type: 'post',
 			cache: false,
-			timeout: 10000,
+			timeout: 40000,
 			success: function(data){
 				console.log("data transmit success");
+                                alert("Data download to server completed.");
 			},
 			error: function(jqXHR, textStatus, errorThrown){
 				alert('error : ' + textStatus + " " + errorThrown);

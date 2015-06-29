@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
 		for(int j = 0;j < receiver.size();j++)
 		{
 			//cout << i << "  " << j  << " " << receiver[j].second - senderTime  << endl;
-			if(frameNumber == receiver[j].first && receiver[j].second - senderTime < 1000)
+			if(frameNumber == receiver[j].first && receiver[j].second - senderTime < 10000)
 			{
 				cout << receiver[j].second - senderTime << endl;
 				of << receiver[j].second - senderTime << endl;
