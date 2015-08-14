@@ -4,13 +4,14 @@
 #include <sstream>  // string to number conversion
 #include <fstream>
 
-#include <opencv2/core/core.hpp>        // Basic OpenCV structures (cv::Mat, Scalar)
-#include <opencv2/imgproc/imgproc.hpp>  // Gaussian Blur
-#include <opencv2/highgui/highgui.hpp>  // OpenCV window I/O
-#include <opencv2/ml/ml.hpp>
+#include <opencv2/core.hpp>        // Basic OpenCV structures (cv::Mat, Scalar)
+#include <opencv2/imgproc.hpp>  // Gaussian Blur
+#include <opencv2/highgui.hpp>  // OpenCV window I/O
+#include <opencv2/ml.hpp>
 
 using namespace std;
 using namespace cv;
+using namespace cv::ml;
 
 ifstream images;
 
@@ -34,7 +35,7 @@ int main()
     cvMoveWindow(WIN_RF, 400       , 0);
     
     Mat data = Mat::zeros(TOTAL, 400, CV_32FC1);
-    Mat label = Mat::zeros(TOTAL, 1, CV_32FC1);
+    Mat label = Mat::zeros(TOTAL, 1, CV_32SC1);
     
     Mat sampleMat = Mat::zeros(400, 1, CV_32FC1);
 	
@@ -85,7 +86,7 @@ int main()
 	}
 	
 	
-	CvSVM svm;
+/*	CvSVM svm;
 	CvSVMParams params;
 	CvTermCriteria criteria;
 	
@@ -98,6 +99,15 @@ int main()
 	
 	svm.train(data, label, Mat(), Mat(), params);
 	svm.save( "./ml/SVM_DATA2.xml" );
-	
+*/
+        images.close();
+        Ptr<SVM> svm = SVM::create();
+        svm->setType(SVM::C_SVC);
+        svm->setC(0.1);
+        svm->setKernel(SVM::LINEAR);
+        svm->setTermCriteria(TermCriteria(CV_TERMCRIT_ITER, (int)1e7, 1e-6));
+
+        svm->train(data, ROW_SAMPLE, label);
+        svm->save( "./ml/SVM_DATA2_opencv3.xml" );
 	return 0;
 }

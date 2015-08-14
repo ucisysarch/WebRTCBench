@@ -289,7 +289,7 @@ app.post('/quality', function(req, res){
 			console.log('you did not offer args');
 		}
 		if(err) {
-			console.info('stderr:'+stderr);
+			console.info('stderr from iq:'+stderr);
 		}
 	});
 });

@@ -5,13 +5,14 @@
 #include <fstream>
 #include <vector>
 
-#include <opencv2/core/core.hpp>        // Basic OpenCV structures (cv::Mat, Scalar)
-#include <opencv2/imgproc/imgproc.hpp>  // Gaussian Blur
-#include <opencv2/highgui/highgui.hpp>  // OpenCV window I/O
-#include <opencv2/ml/ml.hpp>
+#include <opencv2/core.hpp>        // Basic OpenCV structures (cv::Mat, Scalar)
+#include <opencv2/imgproc.hpp>  // Gaussian Blur
+#include <opencv2/highgui.hpp>  // OpenCV window I/O
+#include <opencv2/ml.hpp>
 
 using namespace std;
 using namespace cv;
+using namespace cv::ml;
 
 Mat tagImages(10, 400, CV_32FC1);
 
@@ -76,13 +77,14 @@ int main(int argc, char **argv)
 		}		
 	}
 
-	CvSVM svm;
-	svm.load( "./ml/SVM_DATA.xml" );
-	
+	//CvSVM svm;
+	//svm.load( "./ml/SVM_DATA.xml" );
+	Ptr<SVM> svm = StatModel::load<SVM>( "./ml/SVM_DATA.xml" );
+
 	for(int k = 0;k < 10;k++)
 	{
 		Mat sampleMat = tagImages.row(k);
-        cout << svm.predict(sampleMat) << endl;
+        cout << svm->predict(sampleMat) << endl;
 	}
 
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -187,7 +189,8 @@ int main(int argc, char **argv)
         char c = (char)cvWaitKey(111);
         if (c == 27) break;
     }
-	
+        //cout<<"done"<<endl;
+	//output.close();
 	return 0;
 }
 

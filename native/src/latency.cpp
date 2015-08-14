@@ -4,19 +4,21 @@
 #include <sstream>  // string to number conversion
 #include <fstream>
 
-#include <opencv2/core/core.hpp>        // Basic OpenCV structures (cv::Mat, Scalar)
-#include <opencv2/imgproc/imgproc.hpp>  // Gaussian Blur
-#include <opencv2/highgui/highgui.hpp>  // OpenCV window I/O
-#include <opencv2/ml/ml.hpp>
+#include <opencv2/core.hpp>        // Basic OpenCV structures (cv::Mat, Scalar)
+#include <opencv2/imgproc.hpp>  // Gaussian Blur
+#include <opencv2/highgui.hpp>  // OpenCV window I/O
+#include <opencv2/ml.hpp>
 
 using namespace std;
 using namespace cv;
+using namespace cv::ml;
 
 #define ND 3
 #define TBS 20
 
 int predict(Mat &src);
-CvSVM svm;
+//CvSVM svm;
+Ptr<SVM> svm;
 
 void help()
 {
@@ -54,8 +56,8 @@ int main(int argc, char *argv[])
 	int height = TBS;
 	
 	char c;
-	svm.load( "./native/ml/SVM_DATA.xml" );
-	
+	//svm.load( "./native/ml/SVM_DATA.xml" );
+	svm = StatModel::load<SVM>( "./native/ml/SVM_DATA.xml" );
 
 //////////////////////////////////////////////////////////Load data ////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -182,8 +184,9 @@ int main(int argc, char *argv[])
 		}
 		
 	}
-	
+	//cout<<"done"<<endl; 
 	of.close();
+        svm.release();
 	return 0;
 	
 }
@@ -207,6 +210,6 @@ int predict(Mat &src)
     	}
     }
 
-    int n = svm.predict(dst);
+    int n = svm->predict(dst);
     return n;
 }

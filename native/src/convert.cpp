@@ -21,7 +21,7 @@ void help()
 	cout << "/////////////////////////////////////////////////////////////////////////////////" << endl;
 	cout << "This program measures Frame Loss Rate" << endl;
 	cout << "USAGE: ./convert input output outputwidth outputheight" << endl;
-	cout << "For example: ./tag video/Megamind.avi test.y4m 640 480" << endl;
+	cout << "For example: ./convert video/Megamind.avi test.y4m 640 480" << endl;
 	cout << "/////////////////////////////////////////////////////////////////////////////////" << endl << endl;
 }
 
