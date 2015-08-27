@@ -35,8 +35,9 @@ int main()
     cvMoveWindow(WIN_RF, 400       , 0);
     
     Mat data = Mat::zeros(TOTAL, 400, CV_32FC1);
+    //Mat label = Mat::zeros(TOTAL, 1, CV_32FC1);
     Mat label = Mat::zeros(TOTAL, 1, CV_32SC1);
-    
+
     Mat sampleMat = Mat::zeros(400, 1, CV_32FC1);
 	
 	for(int k = 0;k < TOTAL;k++)
@@ -61,8 +62,8 @@ int main()
 				data.at<float>(k, j + 20*i) = _v;
 			}
 		}
-		label.at<float>(k) = k/500;
-
+		//label.at<float>(k) = k/500;
+                label.at<signed>(k) = k/500;
 		
 		if(k == 1900) 
 		{
@@ -100,6 +101,7 @@ int main()
 	svm.train(data, label, Mat(), Mat(), params);
 	svm.save( "./ml/SVM_DATA2.xml" );
 */
+        //cout<<label.at<float>(0)<<label.at<float>(3333)<<endl;
         images.close();
         Ptr<SVM> svm = SVM::create();
         svm->setType(SVM::C_SVC);
