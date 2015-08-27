@@ -13,5 +13,5 @@ module.exports.db = db;
 db.present = true;  // DB presence
 db.host = 'localhost';
 db.user     = 'root' ;
-db.password = 'webrtc' ;
+db.password = '123456' ;
 db.database = 'webrtcdb' ;

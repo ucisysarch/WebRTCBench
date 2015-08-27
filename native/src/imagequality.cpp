@@ -69,7 +69,7 @@ int main(int argc, char *argv[])
 	
 	char c;
 	//svm.load( "./native/ml/SVM_DATA.xml" );
-        svm = StatModel::load<SVM>( "./native/ml/SVM_DATA2_opencv3.xml" );
+        svm = StatModel::load<SVM>( "./native/ml/SVM_DATA.xml" );
 	
 	
 /////////////////////////////////////////Load original video to map ////////////////////////////////////////////////
